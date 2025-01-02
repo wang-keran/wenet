@@ -41,8 +41,12 @@ struct PrefixScore {
   std::vector<int> times_s;           // times of viterbi blank path
   std::vector<int> times_ns;          // times of viterbi none blank path
 
+  // 获取得分
   float score() const { return LogAdd(s, ns); }
+  // Viterbi算法通过计算每个时间步（或位置）上各个可能状态的得分（通常称为发射得分或一元得分），以及状态之间的转移得分（二元得分），来寻找全局最优的状态序列。
+  // 大的就是好的
   float viterbi_score() const { return v_s > v_ns ? v_s : v_ns; }
+  // 看谁得分高就用谁的时间
   const std::vector<int>& times() const {
     return v_s > v_ns ? times_s : times_ns;
   }
@@ -51,11 +55,13 @@ struct PrefixScore {
   int context_state = 0;
   float context_score = 0;
 
+  // 复制上下文状态和分数
   void CopyContext(const PrefixScore& prefix_score) {
     context_state = prefix_score.context_state;
     context_score = prefix_score.context_score;
   }
 
+  // 更新上下文状态
   void UpdateContext(const std::shared_ptr<ContextGraph>& context_graph,
                      const PrefixScore& prefix_score, int word_id) {
     this->CopyContext(prefix_score);
@@ -93,16 +99,21 @@ class CtcPrefixBeamSearch : public SearchInterface {
   void UpdateHypotheses(
       const std::vector<std::pair<std::vector<int>, PrefixScore>>& hpys);
 
+  // 返回Viterbi似然值
   const std::vector<float>& viterbi_likelihood() const {
     return viterbi_likelihood_;
   }
+  // 返回假设输入
   const std::vector<std::vector<int>>& Inputs() const override {
     return hypotheses_;
   }
+  // 返回输出
   const std::vector<std::vector<int>>& Outputs() const override {
     return outputs_;
   }
+  // 返回预估
   const std::vector<float>& Likelihood() const override { return likelihood_; }
+  // 返回时间
   const std::vector<std::vector<int>>& Times() const override { return times_; }
 
  private:

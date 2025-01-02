@@ -25,7 +25,8 @@
 
 namespace wenet {
 
-// Split the UTF-8 string into unit ids according to unit_table
+// Split the UTF-8 string into unit ids according to
+// unit_table.将输入的字符串根据模块表拆分成块
 bool SplitContextToUnits(const std::string& context,
                          const std::shared_ptr<fst::SymbolTable>& unit_table,
                          std::vector<int>* units) {
@@ -73,9 +74,12 @@ bool SplitContextToUnits(const std::string& context,
   }
   return no_oov;
 }
-
+// 初始化ContextGraph类的对象
 ContextGraph::ContextGraph(ContextConfig config) : config_(config) {}
 
+// 用于在给定的当前状态和单元ID下，追踪（或遍历）上下文图（context
+// graph），并返回下一个状态。
+// 如果达到最终状态，还会通过指针参数返回最终状态。
 int ContextGraph::TraceContext(int cur_state, int unit_id, int* final_state) {
   CHECK_GE(cur_state, 0);
   int next_state = 0;
@@ -91,6 +95,12 @@ int ContextGraph::TraceContext(int cur_state, int unit_id, int* final_state) {
   LOG(FATAL) << "Trace context failed.";
 }
 
+// 根据提供的上下文短语列表和单元表，构建一个上下文图并转换为AC（自动机）
+// 自动机：AC自动机，全称为Aho-Corasick自动机，是一种用于字符串搜索的算法，由Alfred
+// V. Aho和Margaret J. Corasick在1975年提出。
+// 该算法主要用于在一个主文本字符串中查找多个模式字符串（或称为“关键词”），并且可以在线性时间内完成搜索，非常高效。
+// AC自动机的核心思想是基于Trie树（字典树）构建，并结合了KMP算法的思想。具体来说，它在Trie树的每个节点上添加了一个“失配指针”（fail指针），这些
+// 指针允许在查找过程中遇到不匹配时跳转到其他可能匹配的位置，从而避免重复计算。
 void ContextGraph::BuildContextGraph(
     const std::vector<std::string>& contexts,
     const std::shared_ptr<fst::SymbolTable>& unit_table) {
@@ -106,7 +116,7 @@ void ContextGraph::BuildContextGraph(
     context_units[context] = units;
   }
 
-  // Build the context graph
+  // Build the context graph,构建上下文图
   std::unique_ptr<fst::StdVectorFst> ofst(new fst::StdVectorFst());
   int start_state = ofst->AddState();
   ofst->SetStart(start_state);
@@ -147,7 +157,9 @@ void ContextGraph::BuildContextGraph(
   ConvertToAC();
 }
 
+// 将上下文图转换为自动机
 void ContextGraph::ConvertToAC() {
+  // 初始化
   CHECK(graph_ != nullptr) << "Context graph should not be nullptr!";
   int num_states = graph_->NumStates();
   std::vector<int> fail_states(num_states, 0);
@@ -165,11 +177,13 @@ void ContextGraph::ConvertToAC() {
     int state = states_queue.front();
     states_queue.pop();
 
+    // 广度优先搜索（BFS）
     for (ArcIterator aiter(*graph_, state); !aiter.Done(); aiter.Next()) {
       const fst::StdArc& arc = aiter.Value();
       int next_state = arc.nextstate;
       total_weights[next_state] = total_weights[state] + arc.weight.Value();
-      // Backtracking the failure state for next_state
+      // Backtracking the failure state for
+      // next_state,回溯失败状态以获得下一个状态
       for (int fail_state = fail_states[state]; fail_state != -1;
            fail_state = fail_states[fail_state]) {
         matcher.SetState(fail_state);
@@ -182,7 +196,7 @@ void ContextGraph::ConvertToAC() {
     }
   }
 
-  // Compute fail weight, add fail arc
+  // Compute fail weight, add fail arc,计算失败权重并添加失败弧
   for (int state = 0; state < num_states; state++) {
     int fail_state = fail_states[state];
     if (fail_state < 0) continue;
@@ -199,24 +213,28 @@ void ContextGraph::ConvertToAC() {
     graph_->AddArc(state, fst::StdArc(0, 0, fail_weight, fail_state));
   }
   // Sort arcs by ilabel, means move the fallback arc from last to first for the
-  // matcher
+  // matcher,排序弧
   fst::ArcSort(graph_.get(), fst::ILabelCompare<fst::StdArc>());
 }
 
+// 根据当前状态和单元ID找到下一个状态，并计算得分。
 int ContextGraph::GetNextState(int cur_state, int unit_id, float* score,
                                std::unordered_set<std::string>* contexts) {
+  // 输入检查
   CHECK_GE(cur_state, 0);
   // Find(0) matches any epsilons on the underlying FST explicitly
   CHECK_NE(unit_id, 0);
   int next_state = 0;
 
+  // 初始化
   Matcher matcher(*graph_, fst::MATCH_INPUT);
   matcher.SetState(cur_state);
+  // 匹配弧
   if (matcher.Find(unit_id)) {
     const fst::StdArc& arc = matcher.Value();
     next_state = arc.nextstate;
     *score += arc.weight.Value();
-    // Collect all contexts in the decode result
+    // Collect all contexts in the decode result，收集上下文
     if (contexts != nullptr) {
       if (graph_->Final(next_state) != Weight::Zero()) {
         contexts->insert(context_table_[next_state]);
@@ -228,21 +246,22 @@ int ContextGraph::GetNextState(int cur_state, int unit_id, float* score,
       }
     }
 
-    // Leaves go back to the start state
+    // Leaves go back to the start state，处理无弧状态
     if (graph_->NumArcs(next_state) == 0) {
       return 0;
     }
+    // 最终返回 next_state，即下一个状态。
     return next_state;
   }
 
-  // Check whether the first arc is fallback arc
+  // Check whether the first arc is fallback arc，回退弧处理
   ArcIterator aiter(*graph_, cur_state);
   const fst::StdArc& arc = aiter.Value();
   // The start state has no fallback arc
   if (arc.ilabel == 0) {
     next_state = arc.nextstate;
     *score += arc.weight.Value();
-    // fallback
+    // fallback，回退
     return GetNextState(next_state, unit_id, score);
   }
 
@@ -250,3 +269,5 @@ int ContextGraph::GetNextState(int cur_state, int unit_id, float* score,
 }
 
 }  // namespace wenet
+
+// 总结：构建图转自动机，获得得分为了接下来的运算，不算decoder的一部分，但是是decoder的基础

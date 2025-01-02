@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// 基于CTC的，可以给每个转换分配权重的启发图搜索（比贪心多读进来几个数据比较选最好的）解码器
+
 #include "decoder/ctc_wfst_beam_search.h"
 
 #include <utility>
 
 namespace wenet {
 
+// 重置
 void DecodableTensorScaled::Reset() {
   num_frames_ready_ = 0;
   done_ = false;
@@ -26,28 +29,33 @@ void DecodableTensorScaled::Reset() {
   logp_.clear();
 }
 
+// 接收一个对数概率向量logp，并将其存储在成员变量logp_中。同时，增加num_frames_ready_以记录已接收的帧数。
 void DecodableTensorScaled::AcceptLoglikes(const std::vector<float>& logp) {
   ++num_frames_ready_;
   // TODO(Binbin Zhang): Avoid copy here
   logp_ = logp;
 }
 
+// 根据帧号和索引返回对应的对数似然值，考虑了缩放因子scale_
 float DecodableTensorScaled::LogLikelihood(int32 frame, int32 index) {
   CHECK_GT(index, 0);
   CHECK_LT(frame, num_frames_ready_);
   return scale_ * logp_[index - 1];
 }
 
+// 判断给定的帧是否是最后一帧
 bool DecodableTensorScaled::IsLastFrame(int32 frame) const {
   CHECK_LT(frame, num_frames_ready_);
   return done_ && (frame == num_frames_ready_ - 1);
 }
 
+// 当前实现中抛出了一个致命错误，表明这个方法尚未实现。
 int32 DecodableTensorScaled::NumIndices() const {
   LOG(FATAL) << "Not implement";
   return 0;
 }
 
+// 构造函数
 CtcWfstBeamSearch::CtcWfstBeamSearch(
     const fst::Fst<fst::StdArc>& fst, const CtcWfstBeamSearchOptions& opts,
     const std::shared_ptr<ContextGraph>& context_graph)
@@ -58,6 +66,7 @@ CtcWfstBeamSearch::CtcWfstBeamSearch(
   Reset();
 }
 
+// 重置解码器
 void CtcWfstBeamSearch::Reset() {
   num_frames_ = 0;
   decoded_frames_mapping_.clear();
@@ -71,6 +80,8 @@ void CtcWfstBeamSearch::Reset() {
   decoder_.InitDecoding();
 }
 
+// 接收一系列的对数概率向量（每帧一个），并逐帧进行解码。
+// 它根据空白帧的阈值决定是否跳过某些帧，并维护了一个decoded_frames_mapping_来记录哪些帧被实际解码。最后，它获取最佳路径，并准备输出。
 void CtcWfstBeamSearch::Search(const std::vector<std::vector<float>>& logp) {
   if (0 == logp.size()) {
     return;
@@ -123,6 +134,8 @@ void CtcWfstBeamSearch::Search(const std::vector<std::vector<float>>& logp) {
   }
 }
 
+// 在完成所有帧的搜索后，调用此方法以获取最佳路径或N-best路径。
+// 它使用解码器的GetBestPath或GetLattice方法，并将结果转换为对齐的输入序列和输出序列，以及对应的似然值。
 void CtcWfstBeamSearch::FinalizeSearch() {
   decodable_.SetFinish();
   decoder_.FinalizeDecoding();
@@ -162,6 +175,7 @@ void CtcWfstBeamSearch::FinalizeSearch() {
   }
 }
 
+// 将WFST解码器输出的对齐序列转换为输入序列（忽略空白帧和连续相同的标签）。如果提供了time参数，还会记录每个输入对应的时间帧。
 void CtcWfstBeamSearch::ConvertToInputs(const std::vector<int>& alignment,
                                         std::vector<int>* input,
                                         std::vector<int>* time) {

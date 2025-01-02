@@ -28,10 +28,14 @@ namespace wenet {
 Ort::Env OnnxAsrModel::env_ = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "");
 Ort::SessionOptions OnnxAsrModel::session_options_ = Ort::SessionOptions();
 
+// 这个方法设置了会话选项中的
+// IntraOpNumThreads，即单个操作内部可以并行执行的线程数。这有助于在具有多核处理器的系统上提高性能。
 void OnnxAsrModel::InitEngineThreads(int num_threads) {
   session_options_.SetIntraOpNumThreads(num_threads);
 }
 
+// 获取输入输出信息。这个方法接受一个 Ort::Session 的智能指针和两个指向
+// std::vector<const char*> 的指针，用于存储输入和输出节点的名称。
 void OnnxAsrModel::GetInputOutputInfo(
     const std::shared_ptr<Ort::Session>& session,
     std::vector<const char*>* in_names, std::vector<const char*>* out_names) {
@@ -74,6 +78,7 @@ void OnnxAsrModel::GetInputOutputInfo(
   }
 }
 
+// 加载ONNX模型并读取其元数据
 void OnnxAsrModel::Read(const std::string& model_dir) {
   std::string encoder_onnx_path = model_dir + "/encoder.onnx";
   std::string rescore_onnx_path = model_dir + "/decoder.onnx";
@@ -147,6 +152,7 @@ void OnnxAsrModel::Read(const std::string& model_dir) {
   GetInputOutputInfo(rescore_session_, &rescore_in_names_, &rescore_out_names_);
 }
 
+// 构造函数初始化了一些成员变量，包括 encoder_output_size_、num_blocks_、head_、
 OnnxAsrModel::OnnxAsrModel(const OnnxAsrModel& other) {
   // metadatas
   encoder_output_size_ = other.encoder_output_size_;
@@ -176,6 +182,8 @@ OnnxAsrModel::OnnxAsrModel(const OnnxAsrModel& other) {
   rescore_out_names_ = other.rescore_out_names_;
 }
 
+// 创建当前 OnnxAsrModel 对象的一个副本，并返回一个指向该副本的
+// std::shared_ptr。
 std::shared_ptr<AsrModel> OnnxAsrModel::Copy() const {
   auto asr_model = std::make_shared<OnnxAsrModel>(*this);
   // Reset the inner states for new decoding
@@ -183,6 +191,7 @@ std::shared_ptr<AsrModel> OnnxAsrModel::Copy() const {
   return asr_model;
 }
 
+// 重置状态来准备重新decoder
 void OnnxAsrModel::Reset() {
   offset_ = 0;
   encoder_outs_.clear();
@@ -217,6 +226,7 @@ void OnnxAsrModel::Reset() {
       memory_info, cnn_cache_.data(), cnn_cache_.size(), cnn_cache_shape, 4);
 }
 
+// 准备输入数据并将其传递给 ONNX 模型进行推理。
 void OnnxAsrModel::ForwardEncoderFunc(
     const std::vector<std::vector<float>>& chunk_feats,
     std::vector<std::vector<float>>* out_prob) {
@@ -309,6 +319,8 @@ void OnnxAsrModel::ForwardEncoderFunc(
   }
 }
 
+// 计算注意力分数。该函数通过遍历假设序列（hyp）中的每个元素，并将其对应的概率值累加到
+// score 中。最后，它还会加上结束符号（eos）的概率值。
 float OnnxAsrModel::ComputeAttentionScore(const float* prob,
                                           const std::vector<int>& hyp, int eos,
                                           int decode_out_len) {
@@ -320,6 +332,9 @@ float OnnxAsrModel::ComputeAttentionScore(const float* prob,
   return score;
 }
 
+// 对输入的假设（hyps）进行重评分。
+// 该函数首先检查输入参数的有效性，然后对输入的假设进行预处理，包括计算假设的长度、准备重评分的输入数据，并最终调用
+// ONNX Runtime 进行重评分。
 void OnnxAsrModel::AttentionRescoring(const std::vector<std::vector<int>>& hyps,
                                       float reverse_weight,
                                       std::vector<float>* rescoring_score) {
@@ -428,3 +443,5 @@ void OnnxAsrModel::AttentionRescoring(const std::vector<std::vector<int>>& hyps,
 }
 
 }  // namespace wenet
+
+// 总结：处理语音识别的onnx模型类

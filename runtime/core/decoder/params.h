@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// 这是主管，主管所有解码的文件，从这里调用所有需要的解码函数
+
 #ifndef DECODER_PARAMS_H_
 #define DECODER_PARAMS_H_
 
@@ -128,6 +130,7 @@ FeatureType StringToFeatureType(const std::string& feat_type_str) {
     throw std::invalid_argument("Unsupported feat type!");
 }
 
+// 初始化特征处理的管道配置
 std::shared_ptr<FeaturePipelineConfig> InitFeaturePipelineConfigFromFlags() {
   FeatureType feat_type = StringToFeatureType(FLAGS_feat_type);
   auto feature_config = std::make_shared<FeaturePipelineConfig>(
@@ -135,6 +138,7 @@ std::shared_ptr<FeaturePipelineConfig> InitFeaturePipelineConfigFromFlags() {
   return feature_config;
 }
 
+// 初始化解码选项
 std::shared_ptr<DecodeOptions> InitDecodeOptionsFromFlags() {
   auto decode_config = std::make_shared<DecodeOptions>();
   decode_config->chunk_size = FLAGS_chunk_size;

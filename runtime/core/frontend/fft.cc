@@ -131,3 +131,4 @@ int fft(const int* bitrev, const float* sintbl, float* x, float* y, int n) {
 }
 
 }  // namespace wenet
+// 总结：快速傅里叶变换（FFT）算法

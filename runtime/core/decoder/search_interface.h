@@ -45,3 +45,5 @@ class SearchInterface {
 }  // namespace wenet
 
 #endif  // DECODER_SEARCH_INTERFACE_H_
+
+// 总结：设置输入输出的接口

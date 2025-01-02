@@ -53,6 +53,7 @@ enum class LogBase {
 
 class Fbank {
  public:
+  // 构造函数初始化
   Fbank(int num_bins, int sample_rate, int frame_length, int frame_shift,
         float low_freq = 20, bool pre_emphasis = true,
         bool scale_input_to_unit = false,
@@ -88,6 +89,7 @@ class Fbank {
     InitWindow(window_type);
   }
 
+  // 初始化初始化梅尔滤波器
   void InitMelFilters(MelType mel_type) {
     int num_fft_bins = fft_points_ / 2;
     float fft_bin_width = static_cast<float>(sample_rate_) / fft_points_;
@@ -147,6 +149,8 @@ class Fbank {
     }
   }
 
+  // 根据传入的 window_type 参数来初始化一个窗口。它会根据 window_type
+  // 的值来设置窗口的类型为 kPovey 或 kHanning
   void InitWindow(WindowType window_type) {
     window_.resize(frame_length_);
     if (window_type == WindowType::kPovey) {
@@ -162,6 +166,7 @@ class Fbank {
     }
   }
 
+  // 设置各种数据
   void set_use_log(bool use_log) { use_log_ = use_log; }
 
   void set_remove_dc_offset(bool remove_dc_offset) {
@@ -172,6 +177,7 @@ class Fbank {
 
   int num_bins() const { return num_bins_; }
 
+  // 将梅尔频率转换回线性频率
   static inline float InverseMelScale(float mel_freq,
                                       MelType mel_type = MelType::kHTK) {
     if (mel_type == MelType::kHTK) {
@@ -193,6 +199,7 @@ class Fbank {
     }
   }
 
+  // 将频率转换为梅尔尺度
   static inline float MelScale(float freq, MelType mel_type = MelType::kHTK) {
     if (mel_type == MelType::kHTK) {
       return 1127.0f * logf(1.0f + freq / 700.0f);
@@ -213,11 +220,13 @@ class Fbank {
     }
   }
 
+  // 计算并返回大于或等于给定整数 n 的最小的2的幂
   static int UpperPowerOfTwo(int n) {
     return static_cast<int>(pow(2, ceil(log(n) / log(2))));
   }
 
-  // pre emphasis
+  // pre
+  // emphasis,预加重（Pre-emphasis）是一种常见的技术，用于增强信号的高频成分，同时保持低频成分不变
   void PreEmphasis(float coeff, std::vector<float>* data) const {
     if (coeff == 0.0) return;
     for (int i = data->size() - 1; i > 0; i--)
@@ -225,7 +234,8 @@ class Fbank {
     (*data)[0] -= coeff * (*data)[0];
   }
 
-  // Apply window on data in place
+  // Apply window on data in
+  // place,将一个std::vector<float>对象中的元素与一个窗口（window_）中的对应元素相乘。
   void ApplyWindow(std::vector<float>* data) const {
     CHECK_GE(data->size(), window_.size());
     for (size_t i = 0; i < window_.size(); ++i) {
@@ -233,6 +243,7 @@ class Fbank {
     }
   }
 
+  // 检查能量值，归一化处理，更新特征向量
   void WhisperNorm(std::vector<std::vector<float>>* feat,
                    float max_mel_engery) {
     int num_frames = feat->size();
@@ -246,7 +257,8 @@ class Fbank {
     }
   }
 
-  // Compute fbank feat, return num frames
+  // Compute fbank feat, return num
+  // frames,音频特征提取函数，计算出音频的特征，返回帧数
   int Compute(const std::vector<float>& wave,
               std::vector<std::vector<float>>* feat) {
     int num_samples = wave.size();
@@ -357,3 +369,5 @@ class Fbank {
 }  // namespace wenet
 
 #endif  // FRONTEND_FBANK_H_
+
+// 被管线调用的库

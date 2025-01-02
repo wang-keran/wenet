@@ -19,6 +19,7 @@
 
 namespace wenet {
 
+// 初始化
 FeaturePipeline::FeaturePipeline(const FeaturePipelineConfig& config)
     : config_(config),
       feature_dim_(config.num_bins),
@@ -29,6 +30,7 @@ FeaturePipeline::FeaturePipeline(const FeaturePipelineConfig& config)
       num_frames_(0),
       input_finished_(false) {}
 
+// 接收浮点型音频波形数据，并将其转换为特征向量。
 void FeaturePipeline::AcceptWaveform(const float* pcm, const int size) {
   std::vector<std::vector<float>> feats;
   std::vector<float> waves;
@@ -46,6 +48,8 @@ void FeaturePipeline::AcceptWaveform(const float* pcm, const int size) {
   finish_condition_.notify_one();
 }
 
+// 接收16位整型音频波形数据，并将其转换为浮点型后传递给AcceptWaveform(const
+// float* pcm, const int size)方法。
 void FeaturePipeline::AcceptWaveform(const int16_t* pcm, const int size) {
   auto* float_pcm = new float[size];
   for (size_t i = 0; i < size; i++) {
@@ -55,6 +59,7 @@ void FeaturePipeline::AcceptWaveform(const int16_t* pcm, const int size) {
   delete[] float_pcm;
 }
 
+// 该方法用于标记输入数据处理完成，并通知其他线程。
 void FeaturePipeline::set_input_finished() {
   CHECK(!input_finished_);
   {
@@ -64,6 +69,8 @@ void FeaturePipeline::set_input_finished() {
   finish_condition_.notify_one();
 }
 
+// 从 feature_queue_ 中读取一个特征向量。
+// 如果队列不为空，则直接返回队列中的特征向量；如果队列为空，则线程会等待，直到队列中有新的特征向量被添加或输入结束。
 bool FeaturePipeline::ReadOne(std::vector<float>* feat) {
   if (!feature_queue_.Empty()) {
     *feat = std::move(feature_queue_.Pop());
@@ -90,6 +97,8 @@ bool FeaturePipeline::ReadOne(std::vector<float>* feat) {
   }
 }
 
+// 从 feature_queue_
+// 中读取指定数量的帧数据。该函数首先检查队列中是否有足够的帧数据，如果没有，则进入等待状态，直到队列中有足够的帧数据或输入结束
 bool FeaturePipeline::Read(int num_frames,
                            std::vector<std::vector<float>>* feats) {
   feats->clear();
@@ -119,6 +128,7 @@ bool FeaturePipeline::Read(int num_frames,
   }
 }
 
+// 重置管线避免受到影响
 void FeaturePipeline::Reset() {
   input_finished_ = false;
   num_frames_ = 0;
@@ -127,3 +137,4 @@ void FeaturePipeline::Reset() {
 }
 
 }  // namespace wenet
+// 总结：音频预处理，先转特征向量后读取

@@ -285,3 +285,4 @@ void TorchAsrModel::AttentionRescoring(
 }
 
 }  // namespace wenet
+// 总结：使用torch处理语音识别的类

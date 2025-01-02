@@ -36,6 +36,7 @@ bool SplitContextToUnits(const std::string& context,
                          const std::shared_ptr<fst::SymbolTable>& unit_table,
                          std::vector<int>* units);
 
+// 默认参数
 struct ContextConfig {
   int max_contexts = 5000;
   int max_context_length = 100;
@@ -52,7 +53,7 @@ class ContextGraph {
   void ConvertToAC();
   int GetNextState(int cur_state, int unit_id, float* score,
                    std::unordered_set<std::string>* contexts = nullptr);
-  // check context state is the final state
+  // check context state is the final state，检查上下文状态是否为最终状态
   bool IsFinalState(int state) {
     return graph_->Final(state) != Weight::Zero();
   }

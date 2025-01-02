@@ -61,6 +61,7 @@ class WavReader {
   WavReader() : data_(nullptr) {}
   explicit WavReader(const std::string& filename) { Open(filename); }
 
+  // 打开并读取WAV音频文件的函数
   bool Open(const std::string& filename) {
     FILE* fp = fopen(filename.c_str(), "rb");
     if (NULL == fp) {
@@ -135,11 +136,13 @@ class WavReader {
     return true;
   }
 
+  // 传回音频信息
   int num_channel() const { return num_channel_; }
   int sample_rate() const { return sample_rate_; }
   int bits_per_sample() const { return bits_per_sample_; }
   int num_samples() const { return num_samples_; }
 
+  // 释放空间
   ~WavReader() { delete[] data_; }
 
   const float* data() const { return data_; }
@@ -162,6 +165,7 @@ class WavWriter {
         sample_rate_(sample_rate),
         bits_per_sample_(bits_per_sample) {}
 
+  // 将音频数据写入一个WAV格式的文件
   void Write(const std::string& filename) {
     FILE* fp = fopen(filename.c_str(), "wb");
     WavHeader header(num_samples_, num_channel_, sample_rate_,
@@ -200,6 +204,7 @@ class WavWriter {
   int bits_per_sample_;
 };
 
+// 用于写入WAV格式音频文件的流式写入器。
 class StreamWavWriter {
  public:
   StreamWavWriter(int num_channel, int sample_rate, int bits_per_sample)
@@ -243,3 +248,4 @@ class StreamWavWriter {
 }  // namespace wenet
 
 #endif  // FRONTEND_WAV_H_
+// 总结：音频读写

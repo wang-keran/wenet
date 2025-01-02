@@ -24,6 +24,7 @@
 
 namespace wenet {
 
+// 通过维护多个前缀（prefix）来进行CTC解码
 CtcPrefixBeamSearch::CtcPrefixBeamSearch(
     const CtcPrefixBeamSearchOptions& opts,
     const std::shared_ptr<ContextGraph>& context_graph)
@@ -31,6 +32,7 @@ CtcPrefixBeamSearch::CtcPrefixBeamSearch(
   Reset();
 }
 
+// 重置解码器
 void CtcPrefixBeamSearch::Reset() {
   hypotheses_.clear();
   likelihood_.clear();
@@ -54,12 +56,14 @@ void CtcPrefixBeamSearch::Reset() {
   times_.emplace_back(empty);
 }
 
+// 前缀分数比较
 static bool PrefixScoreCompare(
     const std::pair<std::vector<int>, PrefixScore>& a,
     const std::pair<std::vector<int>, PrefixScore>& b) {
   return a.second.total_score() > b.second.total_score();
 }
 
+// 更新当前假设（hypotheses）集合，并基于输入的一组假设（hpys）来更新相关的内部状态
 void CtcPrefixBeamSearch::UpdateHypotheses(
     const std::vector<std::pair<std::vector<int>, PrefixScore>>& hpys) {
   cur_hyps_.clear();
@@ -81,6 +85,10 @@ void CtcPrefixBeamSearch::UpdateHypotheses(
 // Please refer https://robin1001.github.io/2020/12/11/ctc-search
 // for how CTC prefix beam search works, and there is a simple graph demo in
 // it.
+// 查找。用于处理序列到序列的映射问题，其中输入序列（通常是连续的帧或时间步长的特征向量）和输出序列（通常是离散的标签序列）的长度可能不一致
+// 具体来说，Prefix Beam
+// Search在每个时间步对K个前缀进行处理，通过TopK选择前k个候选前缀，并根据当前时间步的log概率更新前缀的得分。
+// 对于每个前缀，如果当前字符是空白符（blank），则更新空白结束得分；如果当前字符与前缀的最后一个字符相同，则更新非空白结束得分。
 void CtcPrefixBeamSearch::Search(const std::vector<std::vector<float>>& logp) {
   if (logp.size() == 0) return;
   int first_beam_size =
@@ -185,12 +193,17 @@ void CtcPrefixBeamSearch::Search(const std::vector<std::vector<float>>& logp) {
   }
 }
 
+// 用于完成前缀束搜索（Prefix Beam
+// Search）的一个关键步骤，在连接主义时间分类（CTC）解码过程中使用
 void CtcPrefixBeamSearch::FinalizeSearch() {
+  // 检查上下文图是否为空
   if (context_graph_ == nullptr) return;
+  // 一致性检查，确保容器大小相同
   CHECK_EQ(hypotheses_.size(), cur_hyps_.size());
   CHECK_EQ(hypotheses_.size(), likelihood_.size());
   // We should backoff the context score/state when the context is
   // not fully matched at the last time.
+  // 回退上下文分数/状态
   for (const auto& prefix : hypotheses_) {
     PrefixScore& prefix_score = cur_hyps_[prefix];
     if (prefix_score.context_state != 0) {
@@ -199,10 +212,14 @@ void CtcPrefixBeamSearch::FinalizeSearch() {
   }
   std::vector<std::pair<std::vector<int>, PrefixScore>> arr(cur_hyps_.begin(),
                                                             cur_hyps_.end());
+  // 排序
   std::sort(arr.begin(), arr.end(), PrefixScoreCompare);
 
-  // Update cur_hyps_ and get new result
+  // Update cur_hyps_ and get new result,更新假设获取结果
   UpdateHypotheses(arr);
 }
 
 }  // namespace wenet
+// 总结：基于CTC和Prefix Beam Search算法的解码器
+// Prefix Beam
+// Search算法的核心思想是将共有的前缀部分从各个候选序列中分离出来，只保留差异化的部分进行扩展和评分。

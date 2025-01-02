@@ -66,6 +66,7 @@ struct FeaturePipelineConfig {
       pre_emphasis = false;
       log_floor = 1e-10;
       log_base = LogBase::kBase10;
+      // 下面两个用的fbank里的变量函数
       window_type = WindowType::kHanning;
       mel_type = MelType::kSlaney;
       scale_input_to_unit = true;
@@ -73,6 +74,7 @@ struct FeaturePipelineConfig {
     }
   }
 
+  // 屏幕输出信息
   void Info() const {
     LOG(INFO) << "feature pipeline config"
               << " num_bins " << num_bins << " frame_length " << frame_length

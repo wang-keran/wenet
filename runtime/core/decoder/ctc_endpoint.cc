@@ -21,17 +21,21 @@
 
 #include "utils/log.h"
 
+// CTC结构实现的端点检测
 namespace wenet {
 
+// 构造初始化
 CtcEndpoint::CtcEndpoint(const CtcEndpointConfig& config) : config_(config) {
   Reset();
 }
 
+// 重置
 void CtcEndpoint::Reset() {
   num_frames_decoded_ = 0;
   num_frames_trailing_blank_ = 0;
 }
 
+// 判断规则是否被激活
 static bool RuleActivated(const CtcEndpointRule& rule,
                           const std::string& rule_name, bool decoded_sth,
                           int trailing_silence, int utterance_length) {
@@ -46,6 +50,7 @@ static bool RuleActivated(const CtcEndpointRule& rule,
   return ans;
 }
 
+// 检测语音信号的端点，即判断是否已经解码了完整的语音片段
 bool CtcEndpoint::IsEndpoint(
     const std::vector<std::vector<float>>& ctc_log_probs,
     bool decoded_something) {
@@ -77,3 +82,5 @@ bool CtcEndpoint::IsEndpoint(
 }
 
 }  // namespace wenet
+
+// 总结：判断CTC解码是否已经解码了完整的语音片段，不算decoder
