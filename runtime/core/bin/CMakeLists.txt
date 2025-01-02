@@ -32,3 +32,5 @@ if(HTTP)
   add_executable(http_server_main http_server_main.cc)
   target_link_libraries(http_server_main PUBLIC http)
 endif()
+
+# 判断使用哪种通信形式

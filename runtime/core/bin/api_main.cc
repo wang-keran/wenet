@@ -24,18 +24,22 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, false);
   google::InitGoogleLogging(argv[0]);
 
+  // 设置日志等级
   wenet_set_log_level(2);
 
+  // 初始化，设置时间戳
   void* decoder = wenet_init(FLAGS_model_dir.c_str());
   wenet_set_timestamp(decoder, FLAGS_enable_timestamp == true ? 1 : 0);
+  // 读取音频文件
   wenet::WavReader wav_reader(FLAGS_wav_path);
+  // 返回数据里的数字样本
   std::vector<int16_t> data(wav_reader.num_samples());
   for (int i = 0; i < wav_reader.num_samples(); i++) {
     data[i] = static_cast<int16_t>(*(wav_reader.data() + i));
   }
 
   for (int i = 0; i < 10; i++) {
-    // Return the final result when last is 1
+    // Return the final result when last is 1 只剩下一个时返回最后结果
     const char* result =
         wenet_decode(decoder, reinterpret_cast<const char*>(data.data()),
                      data.size() * 2, 1);

@@ -110,19 +110,23 @@ class AsrDecoder {
   void Rescoring();
   void Reset();
   void ResetContinuousDecoding();
+  // 检查是否检测出非空句子
   bool DecodedSomething() const {
     return !result_.empty() && !result_[0].sentence.empty();
   }
 
-  // This method is used for time benchmark
+  // This method is used for time benchmark，时间基准测试用到的函数
   int num_frames_in_current_chunk() const {
     return num_frames_in_current_chunk_;
   }
+  // 计算帧移（frame shift）的时间长度，它指的是在连续处理音频帧时，每个新帧相对于前一个帧在时间上向前移动的距离。
   int frame_shift_in_ms() const {
     return model_->subsampling_rate() *
            feature_pipeline_->config().frame_shift * 1000 /
            feature_pipeline_->config().sample_rate;
   }
+  // 计算特征帧移（feature frame shift）的时间长度，并将结果以毫秒（ms）为单位返回。
+  // 在音频信号处理中，帧移指的是在处理连续音频帧时，每个新帧相对于前一个帧在时间轴上的偏移量。
   int feature_frame_shift_in_ms() const {
     return feature_pipeline_->config().frame_shift * 1000 /
            feature_pipeline_->config().sample_rate;

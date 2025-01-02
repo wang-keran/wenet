@@ -32,3 +32,4 @@ int main(int argc, char* argv[]) {
   server.Start();
   return 0;
 }
+// 服务端初始化解码器，特征提取器，模型，等待监听

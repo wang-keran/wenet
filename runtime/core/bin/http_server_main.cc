@@ -22,8 +22,11 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, false);
   google::InitGoogleLogging(argv[0]);
 
+  // 初始化解码选项
   auto decode_config = wenet::InitDecodeOptionsFromFlags();
+  // 初始化特征处理管道
   auto feature_config = wenet::InitFeaturePipelineConfigFromFlags();
+  // 初始化解码资源（模型）
   auto decode_resource = wenet::InitDecodeResourceFromFlags();
 
   wenet::HttpServer server(FLAGS_port, feature_config, decode_config,

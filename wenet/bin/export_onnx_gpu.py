@@ -41,6 +41,7 @@ logger.setLevel(logging.INFO)
 
 class Encoder(torch.nn.Module):
 
+    # 这是直接调用的wenet/tranformer/encoder.py中的BaseEncoder类,CTC是wenet/transformer/ctc.py中的CTC类，都不用自己实现，直接赋值了
     def __init__(self, encoder: BaseEncoder, ctc: CTC, beam_size: int = 10):
         super().__init__()
         self.encoder = encoder
@@ -63,11 +64,15 @@ class Encoder(torch.nn.Module):
             beam_log_probs: B x T x beam_size
             beam_log_probs_idx: B x T x beam_size
         """
+        # 进入encoder的forward函数中，获取输出和掩码
         encoder_out, encoder_mask = self.encoder(speech, speech_lengths, -1,
                                                  -1)
+        # 计算编码器输出的长度，张量结构为(B,1,T),先去掉1,再对T进行求和表示每个批次中有效时间步数的总和，最后是（B,）的结构
         encoder_out_lens = encoder_mask.squeeze(1).sum(1)
+        # 计算CTC的对数概率（torch自带的方法）归一化
         ctc_log_probs = self.ctc.log_softmax(encoder_out)
         encoder_out_lens = encoder_out_lens.int()
+        # 沿着指定维度提取前k个最大值及其索引
         beam_log_probs, beam_log_probs_idx = torch.topk(ctc_log_probs,
                                                         self.beam_size,
                                                         dim=2)
@@ -91,6 +96,7 @@ class StreamingEncoder(torch.nn.Module):
         return_ctc_logprobs=False,
     ):
         super().__init__()
+        # 用的model都是wenet/transformer/encoder.py中的BaseEncoder类和decoder.py,ctc.py拼凑出来的
         self.ctc = model.ctc
         self.subsampling_rate = model.encoder.embed.subsampling_rate
         self.embed = model.encoder.embed
@@ -141,20 +147,27 @@ class StreamingEncoder(torch.nn.Module):
             torch.Tensor: new cache mask, with same shape as the original
                 cache mask
         """
+        # 数据预处理
+        # 压缩偏移量的维度
         offset = offset.squeeze(1)
+        # 获取时如数据块的时间维度大小
         T = chunk_xs.size(1)
+        # 生成掩码，标记填充部分
         chunk_mask = ~make_pad_mask(chunk_lens, T).unsqueeze(1)
         # B X 1 X T
+        # 将掩码转换为与输入数据相同的数据类型
         chunk_mask = chunk_mask.to(chunk_xs.dtype)
-        # transpose batch & num_layers dim
+        # transpose batch & num_layers dim 转置注意力缓存和卷积缓存。
         att_cache = torch.transpose(att_cache, 0, 1)
         cnn_cache = torch.transpose(cnn_cache, 0, 1)
 
-        # rewrite encoder.forward_chunk
-        # <---------forward_chunk START--------->
+        # rewrite encoder.forward_chunk 重写按一块前向传播
+        # <---------forward_chunk START--------->开始
+        # 对输入数据进行全局均值方差归一化。
         xs = self.global_cmvn(chunk_xs)
         # chunk mask is important for batch inferencing since
         # different sequence in a batch has different length
+        # 块掩码对于批量推理很重要，因为批量中的不同序列具有不同的长度
         xs, pos_emb, chunk_mask = self.embed(xs, chunk_mask, offset)
         cache_size = att_cache.size(3)  # required cache size
         masks = torch.cat((cache_mask, chunk_mask), dim=2)

@@ -23,8 +23,10 @@
 
 #include "utils/timer.h"
 
+// 自动语音识别解码器
 namespace wenet {
 
+// 构造函数初始化自动语音识别解码器
 AsrDecoder::AsrDecoder(std::shared_ptr<FeaturePipeline> feature_pipeline,
                        std::shared_ptr<DecodeResource> resource,
                        const DecodeOptions& opts)
@@ -53,6 +55,7 @@ AsrDecoder::AsrDecoder(std::shared_ptr<FeaturePipeline> feature_pipeline,
   ctc_endpointer_->frame_shift_in_ms(frame_shift_in_ms());
 }
 
+// 重置解码器
 void AsrDecoder::Reset() {
   start_ = false;
   result_.clear();
@@ -64,6 +67,7 @@ void AsrDecoder::Reset() {
   ctc_endpointer_->Reset();
 }
 
+// 重置正在执行的解码
 void AsrDecoder::ResetContinuousDecoding() {
   global_frame_offset_ = num_frames_;
   start_ = false;
@@ -73,10 +77,12 @@ void AsrDecoder::ResetContinuousDecoding() {
   ctc_endpointer_->Reset();
 }
 
+// 调用函数解码并返回解码结果
 DecodeState AsrDecoder::Decode(bool block) {
   return this->AdvanceDecoding(block);
 }
 
+// 重打分
 void AsrDecoder::Rescoring() {
   // Do attention rescoring
   Timer timer;
@@ -84,6 +90,7 @@ void AsrDecoder::Rescoring() {
   VLOG(2) << "Rescoring cost latency: " << timer.Elapsed() << "ms.";
 }
 
+// 推进解码过程
 DecodeState AsrDecoder::AdvanceDecoding(bool block) {
   DecodeState state = DecodeState::kEndBatch;
   model_->set_chunk_size(opts_.chunk_size);
@@ -131,6 +138,7 @@ DecodeState AsrDecoder::AdvanceDecoding(bool block) {
   return state;
 }
 
+// 更新结果
 void AsrDecoder::UpdateResult(bool finish) {
   const auto& hypotheses = searcher_->Outputs();
   const auto& inputs = searcher_->Inputs();
@@ -214,6 +222,7 @@ void AsrDecoder::UpdateResult(bool finish) {
   }
 }
 
+// 注意力重打分
 void AsrDecoder::AttentionRescoring() {
   searcher_->FinalizeSearch();
   UpdateResult(true);
@@ -243,3 +252,5 @@ void AsrDecoder::AttentionRescoring() {
 }
 
 }  // namespace wenet
+
+// 总结：解码流程包括特征提取，模型前向计算，搜索解码，结果后处理，时间戳处理，重打分，结果更新等步骤

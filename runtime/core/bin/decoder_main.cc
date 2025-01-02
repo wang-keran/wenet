@@ -24,11 +24,14 @@
 #include "utils/timer.h"
 #include "utils/utils.h"
 
+// 初始化各种数据
+// 设置是否为流式输入，参数为simulate_streaming，默认false，最后是解释
 DEFINE_bool(simulate_streaming, false, "simulate streaming input");
 DEFINE_bool(output_nbest, false, "output n-best of decode result");
 DEFINE_string(wav_path, "", "single wave path");
 DEFINE_string(wav_scp, "", "input wav scp");
 DEFINE_string(result, "", "result output file");
+// 是否连续解码
 DEFINE_bool(continuous_decoding, false, "continuous decoding mode");
 DEFINE_int32(thread_num, 1, "num of decode thread");
 DEFINE_int32(warmup, 0, "num of warmup decode, 0 means no warmup");
@@ -42,6 +45,7 @@ std::mutex g_mutex;
 int g_total_waves_dur = 0;
 int g_total_decode_time = 0;
 
+// 解码
 void Decode(std::pair<std::string, std::string> wav, bool warmup = false) {
   wenet::WavReader wav_reader(wav.second);
   int num_samples = wav_reader.num_samples();

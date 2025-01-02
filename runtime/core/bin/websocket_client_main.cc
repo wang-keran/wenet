@@ -64,3 +64,4 @@ int main(int argc, char* argv[]) {
   VLOG(2) << "Total latency: " << timer.Elapsed() << "ms.";
   return 0;
 }
+// 基于wenet框架的套接字实现服务端客户端语音识别，发送的PCM格式的音频

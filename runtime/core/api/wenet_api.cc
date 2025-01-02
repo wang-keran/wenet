@@ -32,6 +32,7 @@
 
 class Recognizer {
  public:
+  // 构造函数初始化一个语音识别器
   explicit Recognizer(const std::string& model_dir) {
     // FeaturePipeline init
     feature_config_ = std::make_shared<wenet::FeaturePipelineConfig>(80, 16000);
@@ -105,6 +106,7 @@ class Recognizer {
     }
   }
 
+  // 检查并重置两个指针对象：feature_pipeline_ 和 decoder_。
   void Reset() {
     if (feature_pipeline_ != nullptr) {
       feature_pipeline_->Reset();
@@ -114,9 +116,10 @@ class Recognizer {
     }
   }
 
+  // 初始化解码器
   void InitDecoder() {
     CHECK(decoder_ == nullptr);
-    // Optional init context graph
+    // Optional init context graph可选初始化上下文图
     if (context_.size() > 0) {
       context_config_->context_score = context_score_;
       auto context_graph =
@@ -125,9 +128,9 @@ class Recognizer {
       resource_->context_graph = context_graph;
     }
 
-    // Init decode options
+    // Init decode options初始化解码选项
     decode_options_->chunk_size = chunk_size_;
-    // Init decoder
+    // Init decoder 初始化解码器
     decoder_ = std::make_shared<wenet::AsrDecoder>(feature_pipeline_, resource_,
                                                    *decode_options_);
   }
@@ -168,6 +171,7 @@ class Recognizer {
     return result;
   }
 
+  // 更新最终结果
   std::string UpdateResult(bool final_result) {
     json::JSON obj;
     obj["type"] = final_result ? "final_result" : "partial_result";
@@ -195,9 +199,13 @@ class Recognizer {
   void set_nbest(int n) { nbest_ = n; }
   void set_enable_timestamp(bool flag) { enable_timestamp_ = flag; }
   void AddContext(const char* word) { context_.emplace_back(word); }
+  // 设置文字分数
   void set_context_score(float score) { context_score_ = score; }
+  // 设置解码的语言
   void set_language(const char* lang) { language_ = lang; }
+  // 设置持续解码
   void set_continuous_decoding(bool flag) { continuous_decoding_ = flag; }
+  // 设置块大小
   void set_chunk_size(int chunk_size) { chunk_size_ = chunk_size; }
 
  private:
@@ -219,20 +227,24 @@ class Recognizer {
   int chunk_size_ = 16;
 };
 
+// 初始化wenet
 void* wenet_init(const char* model_dir) {
   Recognizer* decoder = new Recognizer(model_dir);
   return reinterpret_cast<void*>(decoder);
 }
 
+// 释放wenet
 void wenet_free(void* decoder) {
   delete reinterpret_cast<Recognizer*>(decoder);
 }
 
+// 重置wenet
 void wenet_reset(void* decoder) {
   Recognizer* recognizer = reinterpret_cast<Recognizer*>(decoder);
   recognizer->Reset();
 }
 
+// 解码
 const char* wenet_decode(void* decoder, const char* data, int len, int last) {
   static std::string result;
   Recognizer* recognizer = reinterpret_cast<Recognizer*>(decoder);
@@ -240,43 +252,53 @@ const char* wenet_decode(void* decoder, const char* data, int len, int last) {
   return result.c_str();
 }
 
+// 设置日志记录级别
 void wenet_set_log_level(int level) {
   FLAGS_logtostderr = true;
   FLAGS_v = level;
 }
 
+// 设置解码器最佳路径数量
 void wenet_set_nbest(void* decoder, int n) {
   Recognizer* recognizer = reinterpret_cast<Recognizer*>(decoder);
   recognizer->set_nbest(n);
 }
 
+// 设置时间戳，使显示字幕时间更准确
 void wenet_set_timestamp(void* decoder, int flag) {
   Recognizer* recognizer = reinterpret_cast<Recognizer*>(decoder);
   bool enable = flag > 0 ? true : false;
   recognizer->set_enable_timestamp(enable);
 }
 
+// 添加文字
 void wenet_add_context(void* decoder, const char* word) {
   Recognizer* recognizer = reinterpret_cast<Recognizer*>(decoder);
   recognizer->AddContext(word);
 }
 
+// 打分
 void wenet_set_context_score(void* decoder, float score) {
   Recognizer* recognizer = reinterpret_cast<Recognizer*>(decoder);
   recognizer->set_context_score(score);
 }
 
+// 设置语言
 void wenet_set_language(void* decoder, const char* lang) {
   Recognizer* recognizer = reinterpret_cast<Recognizer*>(decoder);
   recognizer->set_language(lang);
 }
 
+// 设置持续解码
 void wenet_set_continuous_decoding(void* decoder, int flag) {
   Recognizer* recognizer = reinterpret_cast<Recognizer*>(decoder);
   recognizer->set_continuous_decoding(flag > 0);
 }
 
+// 设置块大小
 void wenet_set_chunk_size(void* decoder, int chunk_size) {
   Recognizer* recognizer = reinterpret_cast<Recognizer*>(decoder);
   recognizer->set_chunk_size(chunk_size);
 }
+
+// 总结：wenet的定义和初始化的函数都在这里

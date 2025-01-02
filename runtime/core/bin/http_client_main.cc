@@ -46,3 +46,5 @@ int main(int argc, char* argv[]) {
   VLOG(2) << "Total latency: " << timer.Elapsed() << "ms.";
   return 0;
 }
+
+// 使用wenet框架的http通信的客户端，编码后发送字节到服务端

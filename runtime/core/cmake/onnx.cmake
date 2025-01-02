@@ -38,3 +38,4 @@ if(ONNX)
 
   add_definitions(-DUSE_ONNX)
 endif()
+# onnx runtime环境的安装

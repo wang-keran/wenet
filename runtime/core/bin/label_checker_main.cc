@@ -134,26 +134,31 @@ void CompileAlignFst(std::vector<int> labels,
 
 }  // namespace wenet
 
+// 使用Wenet语音识别框架进行语音识别并生成文本对齐时间戳
 int main(int argc, char* argv[]) {
+  // 初始化命令行参数和日志
   gflags::ParseCommandLineFlags(&argc, &argv, false);
   google::InitGoogleLogging(argv[0]);
 
+  // 初始化解码选项，特征处理管道，初始化解码资源（模型），没有服务端
   auto decode_config = wenet::InitDecodeOptionsFromFlags();
   auto feature_config = wenet::InitFeaturePipelineConfigFromFlags();
   auto decode_resource = wenet::InitDecodeResourceFromFlags();
   CHECK(decode_resource->unit_table != nullptr);
 
+  // 根据单元表创建一个符号表（symbol table），用于后续的FST（有限状态机）编译。
   auto wfst_symbol_table =
       wenet::MakeSymbolTableForFst(decode_resource->unit_table);
   // wfst_symbol_table->WriteText("fst.txt");
   // Reset symbol_table to on-the-fly generated wfst_symbol_table
   decode_resource->symbol_table = wfst_symbol_table;
 
-  // Compile ctc FST
+  // Compile ctc FST,编译CTC FST
   fst::StdVectorFst ctc_fst;
   wenet::CompileCtcFst(wfst_symbol_table, &ctc_fst);
   // ctc_fst.Write("ctc.fst");
 
+  // 读取wav文件和文本文件
   std::unordered_map<std::string, std::string> wav_table;
   std::ifstream wav_is(FLAGS_wav_scp);
   std::string line;
@@ -164,6 +169,7 @@ int main(int argc, char* argv[]) {
     wav_table[strs[0]] = strs[1];
   }
 
+  // 准备输入输出文件
   std::ifstream text_is(FLAGS_text);
   std::ofstream result_os(FLAGS_result, std::ios::out);
   std::ofstream timestamp_out;
@@ -173,6 +179,7 @@ int main(int argc, char* argv[]) {
   std::ostream& timestamp_os =
       FLAGS_timestamp.empty() ? std::cout : timestamp_out;
 
+  // 处理每一行文本
   while (std::getline(text_is, line)) {
     std::vector<std::string> strs;
     wenet::SplitString(line, &strs);
@@ -192,6 +199,7 @@ int main(int argc, char* argv[]) {
       fst::Compose(ctc_fst, align_fst, decoding_fst.get());
       // decoding_fst->Write("decoding.fst");
       // Preapre feature pipeline
+      // 特征提取和解码
       wenet::WavReader wav_reader;
       if (!wav_reader.Open(wav_table[key])) {
         LOG(WARNING) << "Error in reading " << wav_table[key];
@@ -216,6 +224,7 @@ int main(int argc, char* argv[]) {
       }
       std::string final_result;
       std::string timestamp_str;
+      // 输出结果
       if (decoder.DecodedSomething()) {
         const wenet::DecodeResult& result = decoder.result()[0];
         final_result = result.sentence;
@@ -223,6 +232,7 @@ int main(int argc, char* argv[]) {
         for (const auto& w : result.word_pieces) {
           ss << " " << w.word << " " << w.start << " " << w.end;
         }
+        // 日志记录
         timestamp_str = ss.str();
       }
       result_os << key << " " << final_result << std::endl;

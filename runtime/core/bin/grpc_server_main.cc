@@ -49,3 +49,5 @@ int main(int argc, char* argv[]) {
   google::ShutdownGoogleLogging();
   return 0;
 }
+
+// 使用wenet框架的grpc通信的GRPC服务端工作流程，负责解码和语音识别

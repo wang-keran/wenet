@@ -8,3 +8,5 @@ include_directories(${boost_SOURCE_DIR})
 if(MSVC)
   add_definitions(-DBOOST_ALL_DYN_LINK -DBOOST_ALL_NO_LIB)
 endif()
+
+#配置boost库的
