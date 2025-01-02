@@ -22,6 +22,7 @@
 
 namespace kaldi {
 
+// 将布尔值b写入到输出流os中
 template <>
 void WriteBasicType<bool>(std::ostream& os, bool binary, bool b) {
   os << (b ? "T" : "F");
@@ -29,6 +30,7 @@ void WriteBasicType<bool>(std::ostream& os, bool binary, bool b) {
   if (os.fail()) KALDI_ERR << "Write failure in WriteBasicType<bool>";
 }
 
+// 从输入流 is 中读取一个布尔值
 template <>
 void ReadBasicType<bool>(std::istream& is, bool binary, bool* b) {
   KALDI_PARANOID_ASSERT(b != NULL);
@@ -46,6 +48,7 @@ void ReadBasicType<bool>(std::istream& is, bool binary, bool* b) {
   }
 }
 
+// 将浮点数float写入到输出流std::ostream中。
 template <>
 void WriteBasicType<float>(std::ostream& os, bool binary, float f) {
   if (binary) {
@@ -57,6 +60,7 @@ void WriteBasicType<float>(std::ostream& os, bool binary, float f) {
   }
 }
 
+// 将double写入输出流td::ostream
 template <>
 void WriteBasicType<double>(std::ostream& os, bool binary, double f) {
   if (binary) {
@@ -68,6 +72,7 @@ void WriteBasicType<double>(std::ostream& os, bool binary, double f) {
   }
 }
 
+// 将float从istream流中读出来
 template <>
 void ReadBasicType<float>(std::istream& is, bool binary, float* f) {
   KALDI_PARANOID_ASSERT(f != NULL);
@@ -93,6 +98,7 @@ void ReadBasicType<float>(std::istream& is, bool binary, float* f) {
   }
 }
 
+// 将double从istream流中读出来
 template <>
 void ReadBasicType<double>(std::istream& is, bool binary, double* d) {
   KALDI_PARANOID_ASSERT(d != NULL);
@@ -118,6 +124,7 @@ void ReadBasicType<double>(std::istream& is, bool binary, double* d) {
   }
 }
 
+// 检查一个字符串是否为空或包含空白字符
 void CheckToken(const char* token) {
   if (*token == '\0') KALDI_ERR << "Token is empty (not a valid token)";
   const char* orig_token = token;
@@ -129,6 +136,7 @@ void CheckToken(const char* token) {
   }
 }
 
+// 将一个字符串token写入到输出流os中
 void WriteToken(std::ostream& os, bool binary, const char* token) {
   // binary mode is ignored;
   // we use space as termination character in either case.
@@ -140,15 +148,18 @@ void WriteToken(std::ostream& os, bool binary, const char* token) {
   }
 }
 
+// 从输入流中读取下一个字符而不提取它
 int Peek(std::istream& is, bool binary) {
   if (!binary) is >> std::ws;  // eat up whitespace.
   return is.peek();
 }
 
+// 将一个字符串token写入到输出流os中string版
 void WriteToken(std::ostream& os, bool binary, const std::string& token) {
   WriteToken(os, binary, token.c_str());
 }
 
+// 从输入流 is 中读取一个字符串，并进行一些错误检查。
 void ReadToken(std::istream& is, bool binary, std::string* str) {
   KALDI_ASSERT(str != NULL);
   if (!binary) is >> std::ws;  // consume whitespace.
@@ -165,6 +176,7 @@ void ReadToken(std::istream& is, bool binary, std::string* str) {
   is.get();  // consume the space.
 }
 
+// 从输入流 is 中读取一个字符，并根据是否读取到括号 > 来决定是否回退该字符。
 int PeekToken(std::istream& is, bool binary) {
   if (!binary) is >> std::ws;  // consume whitespace.
   bool read_bracket;
@@ -185,6 +197,8 @@ int PeekToken(std::istream& is, bool binary) {
   return ans;
 }
 
+// 从输入流 is 中读取一个预期的标记（token），并检查它是否与给定的 token
+// 匹配。如果读取的标记与预期的标记不匹配，则会抛出一个错误。
 void ExpectToken(std::istream& is, bool binary, const char* token) {
   int pos_at_start = is.tellg();
   KALDI_ASSERT(token != NULL);
@@ -208,6 +222,8 @@ void ExpectToken(std::istream& is, bool binary, const char* token) {
   }
 }
 
+// 从输入流 is 中读取一个预期的标记（token），并检查它是否与给定的 token
+// 匹配。如果读取的标记与预期的标记不匹配，则会抛出一个错误。string版
 void ExpectToken(std::istream& is, bool binary, const std::string& token) {
   ExpectToken(is, binary, token.c_str());
 }

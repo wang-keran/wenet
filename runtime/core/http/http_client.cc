@@ -62,3 +62,4 @@ void HttpClient::SendBinaryData(const void* data, size_t size) {
 }
 
 }  // namespace wenet
+// 总结：http客户端通信实现

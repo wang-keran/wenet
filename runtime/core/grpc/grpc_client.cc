@@ -83,3 +83,4 @@ void GrpcClient::Join() {
   }
 }
 }  // namespace wenet
+// GRPC客户端通信具体实现

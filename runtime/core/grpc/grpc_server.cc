@@ -174,3 +174,4 @@ Status GrpcServer::Recognize(ServerContext* context,
   return Status::OK;
 }
 }  // namespace wenet
+// grpc服务端通信的具体实现

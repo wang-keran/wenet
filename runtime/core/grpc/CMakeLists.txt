@@ -21,3 +21,4 @@ add_library(wenet_grpc STATIC
   wenet.grpc.pb.cc
 )
 target_link_libraries(wenet_grpc PUBLIC grpc++ grpc++_reflection decoder)
+# 第二顶层的代码，第一顶层是bin里的main函数，第三是decoder，frontend

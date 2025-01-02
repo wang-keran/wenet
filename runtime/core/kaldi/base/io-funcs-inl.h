@@ -31,7 +31,7 @@
 
 namespace kaldi {
 
-// Template that covers integers.
+// Template that covers integers.用于将不同类型的数据写入输出流
 template <class T>
 void WriteBasicType(std::ostream& os, bool binary, T t) {
   // Compile time assertion that this is not called with a wrong type.
@@ -52,7 +52,8 @@ void WriteBasicType(std::ostream& os, bool binary, T t) {
   }
 }
 
-// Template that covers integers.
+// Template that covers
+// integers.从输入流中读取基本类型的数据。该函数支持两种模式：二进制模式和文本模式。
 template <class T>
 inline void ReadBasicType(std::istream& is, bool binary, T* t) {
   KALDI_PARANOID_ASSERT(t != NULL);
@@ -89,7 +90,8 @@ inline void ReadBasicType(std::istream& is, bool binary, T* t) {
   }
 }
 
-// Template that covers integers.
+// Template that covers
+// integers.从输入流中读取整数对向量。该函数支持两种读取模式：二进制模式和文本模式。
 template <class T>
 inline void WriteIntegerPairVector(std::ostream& os, bool binary,
                                    const std::vector<std::pair<T, T> >& v) {
@@ -126,7 +128,7 @@ inline void WriteIntegerPairVector(std::ostream& os, bool binary,
   }
 }
 
-// Template that covers integers.
+// Template that covers integers.将一个包含整数对的向量写入输出流
 template <class T>
 inline void ReadIntegerPairVector(std::istream& is, bool binary,
                                   std::vector<std::pair<T, T> >* v) {
@@ -197,6 +199,7 @@ bad:
             << is.tellg();
 }
 
+// 将一个整数向量写入流中
 template <class T>
 inline void WriteIntegerVector(std::ostream& os, bool binary,
                                const std::vector<T>& v) {
@@ -231,6 +234,7 @@ inline void WriteIntegerVector(std::ostream& os, bool binary,
   }
 }
 
+// 从输入流中读取整数向量。该函数支持两种读取模式：二进制模式和文本模式
 template <class T>
 inline void ReadIntegerVector(std::istream& is, bool binary,
                               std::vector<T>* v) {
@@ -289,6 +293,7 @@ bad:
             << is.tellg();
 }
 
+// 始化一个输出流，根据是否为二进制模式写入特定的头信息，并调整浮点数的精度。
 // Initialize an opened stream for writing by writing an optional binary
 // header and modifying the floating-point precision.
 inline void InitKaldiOutputStream(std::ostream& os, bool binary) {
@@ -302,6 +307,7 @@ inline void InitKaldiOutputStream(std::ostream& os, bool binary) {
   // 7 is a bit more than the precision of float..
   if (os.precision() < 7) os.precision(7);
 }
+
 
 /// Initialize an opened stream for reading by detecting the binary header and
 // setting the "binary" value appropriately.
@@ -327,3 +333,4 @@ inline bool InitKaldiInputStream(std::istream& is, bool* binary) {
 }  // end namespace kaldi.
 
 #endif  // KALDI_BASE_IO_FUNCS_INL_H_
+// 总结：kaldi的流读取写入和初始化流
