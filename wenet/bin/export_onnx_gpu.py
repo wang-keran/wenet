@@ -16,14 +16,13 @@
 from __future__ import print_function
 
 import argparse
+import logging
 import os
 import sys
 
 import torch
-import yaml
-import logging
-
 import torch.nn.functional as F
+import yaml
 from wenet.transformer.ctc import CTC
 from wenet.transformer.decoder import TransformerDecoder
 from wenet.transformer.encoder import BaseEncoder
@@ -190,15 +189,19 @@ class StreamingEncoder(torch.nn.Module):
         r_cnn_cache = []
         # 遍历每一层编码器，进行前向传播，并更新注意力缓存和卷积缓存。
         for i, layer in enumerate(self.encoder.encoders):
-            xs, _, new_att_cache, new_cnn_cache = layer(
+            i_kv_cache = att_cache[i]
+            size = att_cache.size(-1) // 2
+            kv_cache = (i_kv_cache[:, :, :, :size], i_kv_cache[:, :, :, size:])
+            xs, _, new_kv_cache, new_cnn_cache = layer(
                 xs,
                 masks,
                 pos_emb,
-                att_cache=att_cache[i],
+                att_cache=kv_cache,
                 cnn_cache=cnn_cache[i],
             )
             #   shape(new_att_cache) is (B, head, attention_key_size, d_k * 2),
             #   shape(new_cnn_cache) is (B, hidden-dim, cache_t2)
+            new_att_cache = torch.cat(new_kv_cache, dim=-1)
             r_att_cache.append(
                 new_att_cache[:, :, next_cache_start:, :].unsqueeze(1))
             if not self.transformer:
@@ -1353,8 +1356,8 @@ if __name__ == "__main__":
     if args.fp16:
         try:
             import onnxmltools
-            from onnxmltools.utils.float16_converter import (
-                convert_float_to_float16, )
+            from onnxmltools.utils.float16_converter import \
+                convert_float_to_float16
         except ImportError:
             print("Please install onnxmltools!")
             sys.exit(1)
