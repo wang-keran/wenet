@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#转onnx模型脚本,输出config.yaml,encoder.onnx,encoder_fp16.onnx,decoder.onnx,decoder_fp16.onnx
 from __future__ import print_function
 
 import argparse
@@ -39,6 +40,7 @@ logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
 
 
+# 根据torch生成了一个编码器
 class Encoder(torch.nn.Module):
 
     # 这是直接调用的wenet/tranformer/encoder.py中的BaseEncoder类,CTC是wenet/transformer/ctc.py中的CTC类，都不用自己实现，直接赋值了
@@ -85,6 +87,7 @@ class Encoder(torch.nn.Module):
         )
 
 
+# 定义了流式编码器
 class StreamingEncoder(torch.nn.Module):
 
     def __init__(
@@ -169,18 +172,23 @@ class StreamingEncoder(torch.nn.Module):
         # different sequence in a batch has different length
         # 块掩码对于批量推理很重要，因为批量中的不同序列具有不同的长度
         xs, pos_emb, chunk_mask = self.embed(xs, chunk_mask, offset)
-        cache_size = att_cache.size(3)  # required cache size
+        cache_size = att_cache.size(3)  # required cache size，需要的cache缓存大小
+        # 拼接缓存掩码和数据块掩码。
         masks = torch.cat((cache_mask, chunk_mask), dim=2)
         index = offset - cache_size
 
+        # 生成位置编码并转换为dtype格式。
         pos_emb = self.embed.position_encoding(index, cache_size + xs.size(1))
         pos_emb = pos_emb.to(dtype=xs.dtype)
 
+        # 计算下一个缓存的起始位置和缓存掩码。
         next_cache_start = -self.required_cache_size
         r_cache_mask = masks[:, :, next_cache_start:]
 
+        # 初始化注意力缓存和卷积缓存。
         r_att_cache = []
         r_cnn_cache = []
+        # 遍历每一层编码器，进行前向传播，并更新注意力缓存和卷积缓存。
         for i, layer in enumerate(self.encoder.encoders):
             xs, _, new_att_cache, new_cnn_cache = layer(
                 xs,
@@ -200,25 +208,32 @@ class StreamingEncoder(torch.nn.Module):
         else:
             chunk_out = xs
 
-        r_att_cache = torch.cat(r_att_cache, dim=1)  # concat on layers idx
+        r_att_cache = torch.cat(r_att_cache, dim=1)  # concat on layers idx，在层索引上连接
         if not self.transformer:
-            r_cnn_cache = torch.cat(r_cnn_cache, dim=1)  # concat on layers
+            r_cnn_cache = torch.cat(r_cnn_cache, dim=1)  # concat on layers，在层上连接
 
-        # <---------forward_chunk END--------->
+        # <---------forward_chunk END--------->前向块传播结束（正向块推理结束）
 
+        # 计算CTC输出的对数概率。
         log_ctc_probs = self.ctc.log_softmax(chunk_out)
+        # 获取Top-K的CTC对数概率及其索引。
         log_probs, log_probs_idx = torch.topk(log_ctc_probs,
                                               self.beam_size,
                                               dim=2)
+        # 将对数概率转换成与输入数据相同的数据类型。
         log_probs = log_probs.to(chunk_xs.dtype)
 
+        # 计算新的右偏移量，作用是过更新偏移量，确保在处理连续的数据块时，模型能够正确地对齐和处理每个数据块。
         r_offset = offset + chunk_out.shape[1]
         # the below ops not supported in Tensorrt
         # chunk_out_lens = torch.div(chunk_lens, subsampling_rate,
         #                   rounding_mode='floor')
+        # 计算输出数据块的长度。
         chunk_out_lens = chunk_lens // self.subsampling_rate
+        # 给右偏移量增加一个维度
         r_offset = r_offset.unsqueeze(1)
         if self.return_ctc_logprobs:
+            # 如果需要返回CTC对数概率，则返回CTC对数概率及其索引。
             return (
                 log_ctc_probs,
                 chunk_out,
@@ -229,6 +244,7 @@ class StreamingEncoder(torch.nn.Module):
                 r_cache_mask,
             )
         else:
+            # 如果不需要返回CTC对数概率，则返回Top-K的CTC对数概率及其索引。
             return (
                 log_probs,
                 log_probs_idx,
@@ -241,6 +257,7 @@ class StreamingEncoder(torch.nn.Module):
             )
 
 
+# 定义流式 Squeezeformer 编码器模型
 class StreamingSqueezeformerEncoder(torch.nn.Module):
 
     def __init__(self, model, required_cache_size, beam_size):
@@ -263,6 +280,7 @@ class StreamingSqueezeformerEncoder(torch.nn.Module):
                 self.time_reduce = "recover"  # recovery at the end
                 assert len(self.reduce_idx) == len(self.recover_idx)
 
+    # 计算在第 i 层编码器层之后的下采样因子。下采样因子表示在经过若干层编码器之后，时间步的减少倍数，用来降低计算复杂度和内存消耗。
     def calculate_downsampling_factor(self, i: int) -> int:
         if self.reduce_idx is None:
             return 1
@@ -317,47 +335,72 @@ class StreamingSqueezeformerEncoder(torch.nn.Module):
             torch.Tensor: new cache mask, with same shape as the original
                 cache mask
         """
+        # 减少偏移量一个维度
         offset = offset.squeeze(1)
+        # 获取数据块的时间步大小
         T = chunk_xs.size(1)
+        # 生成掩码，标记填充部分
         chunk_mask = ~make_pad_mask(chunk_lens, T).unsqueeze(1)
-        # B X 1 X T
+        # （B X 1 X T），这是做完掩码的数据维度结构
         chunk_mask = chunk_mask.to(chunk_xs.dtype)
-        # transpose batch & num_layers dim
+        # transpose batch & num_layers dim，转置注意力缓存和卷积缓存，将第0维度和第1维度进行交换，即(a,b)转置为(b,a)。
         att_cache = torch.transpose(att_cache, 0, 1)
         cnn_cache = torch.transpose(cnn_cache, 0, 1)
 
-        # rewrite encoder.forward_chunk
-        # <---------forward_chunk START--------->
+        # rewrite encoder.forward_chunk,重写按一块前向传播方法，即按块推理方法
+        # <---------forward_chunk START--------->向前推理开始
+        # 获取全局均值方差归一化的数据（预处理的数据
         xs = self.global_cmvn(chunk_xs)
         # chunk mask is important for batch inferencing since
         # different sequence in a batch has different length
+        # 块掩码对于批量推理非常重要，因为批次中的不同序列具有不同的长度。
         xs, pos_emb, chunk_mask = self.embed(xs, chunk_mask, offset)
+        # 获取编码器层数和缓存大小
         elayers, cache_size = att_cache.size(0), att_cache.size(3)
+        # 获取注意力掩码
         att_mask = torch.cat((cache_mask, chunk_mask), dim=2)
+        # 获取索引
         index = offset - cache_size
 
+        # 生成位置编码并转换为dtype格式。生成位置编码用的wenet/tranformer中项目自带的方法
         pos_emb = self.embed.position_encoding(index, cache_size + xs.size(1))
         pos_emb = pos_emb.to(dtype=xs.dtype)
 
+        # 计算下一个缓存的起始位置和缓存掩码。
         next_cache_start = -self.required_cache_size
         r_cache_mask = att_mask[:, :, next_cache_start:]
 
+        # 初始化注意力缓存和卷积神经网络缓存
         r_att_cache = []
         r_cnn_cache = []
+        # 创建了一个全为 1 的张量，形状为 (1, xs.size(1))，
+        # 数据类型为布尔型，并且与输入张量 xs 位于相同的设备上。xs.size(1) 获取了输入张量 xs 在第一个维度上的大小。
         mask_pad = torch.ones(1,
                               xs.size(1),
                               device=xs.device,
                               dtype=torch.bool)
+        # 增加一个维度
         mask_pad = mask_pad.unsqueeze(1)
+        # 初始化了一个名为 max_att_len 的整数变量，并将其值设置为 0。
+        # 这个变量可能用于跟踪注意力机制中的最大长度。
         max_att_len: int = 0
+        # 一个列表里四个torch.Tensor类型的元组，初始化空列表
         recover_activations: List[Tuple[torch.Tensor, torch.Tensor,
                                         torch.Tensor, torch.Tensor]] = []
+        # 初始化索引为0
         index = 0
+        # 创建xs_lens张量，用于记录xs的长度
         xs_lens = torch.tensor([xs.size(1)], device=xs.device, dtype=torch.int)
+        # 预处理："pre-layer normalization"（预层归一化），
+        # 这是一种在深度学习模型中常用的技术，用于在输入数据进入模型之前对其进行归一化处理，以提高模型的训练效果和稳定性。
         xs = self.encoder.preln(xs)
+        # 遍历编码器的每一层，并获取当前层的索引 i 和层对象 layer。
         for i, layer in enumerate(self.encoder.encoders):
+            # 检查是否需要进行时间步下采样
+            # 检查 reduce_idx 是否为 None，如果不是，则继续检查 time_reduce 是否为 None 并且当前层索引 i 是否在 reduce_idx 中。
             if self.reduce_idx is not None:
                 if self.time_reduce is not None and i in self.reduce_idx:
+                    # 如果条件满足，将当前的 xs、att_mask、pos_emb 和 mask_pad 添加到 recover_activations 列表中。
                     recover_activations.append(
                         (xs, att_mask, pos_emb, mask_pad))
                     (
@@ -365,71 +408,102 @@ class StreamingSqueezeformerEncoder(torch.nn.Module):
                         xs_lens,
                         att_mask,
                         mask_pad,
+                        # 调用 self.encoder.time_reduction_layer 方法对 xs、xs_lens、att_mask 和 mask_pad 进行时间步下采样。
                     ) = self.encoder.time_reduction_layer(
                         xs, xs_lens, att_mask, mask_pad)
+                    # 更新 pos_emb，将其时间步数减半。
                     pos_emb = pos_emb[:, ::2, :]
+                    # 如果 self.encoder.pos_enc_layer_type 为 "rel_pos_repaired"，则进一步调整 pos_emb 的形状。
                     if self.encoder.pos_enc_layer_type == "rel_pos_repaired":
                         pos_emb = pos_emb[:, :xs.size(1) * 2 - 1, :]
+                    # 增加 index 的值。
                     index += 1
 
+            # 检查是否需要进行时间步恢复
+            # 检查 recover_idx 是否为 None，
             if self.recover_idx is not None:
+                # 如果不是，则继续检查 time_reduce 是否为 "recover" 并且当前层索引 i 是否在 recover_idx 中。
                 if self.time_reduce == "recover" and i in self.recover_idx:
+                    # 如果条件满足，减少 index 的值。
                     index -= 1
+                    # 从 recover_activations 列表中取出对应index索引值的 
+                    # recover_tensor、recover_att_mask、recover_pos_emb 和 recover_mask_pad。
                     (
                         recover_tensor,
                         recover_att_mask,
                         recover_pos_emb,
                         recover_mask_pad,
                     ) = recover_activations[index]
-                    # recover output length for ctc decode
+                    # recover output length for ctc decode，恢复CTC解码的输出长度，先通过 unsqueeze 和 repeat 操作将时间步数加倍
                     xs = xs.unsqueeze(2).repeat(1, 1, 2, 1).flatten(1, 2)
+                    # 然后调用 self.encoder.time_recover_layer 方法进行恢复。
                     xs = self.encoder.time_recover_layer(xs)
+                    # 获取恢复后的时间步数
                     recoverd_t = recover_tensor.size(1)
+                    # 更新 xs，将恢复后的 xs 与 recover_tensor 相加。
                     xs = recover_tensor + xs[:, :recoverd_t, :].contiguous()
+                    # 获取恢复后的注意力掩码、位置编码和掩码。mask_pad是用于表示输入序列中的填充位置。
                     att_mask = recover_att_mask
                     pos_emb = recover_pos_emb
                     mask_pad = recover_mask_pad
 
+            # 调用 calculate_downsampling_factor 方法计算当前层的下采样因子 factor。
             factor = self.calculate_downsampling_factor(i)
 
+            # 调用 layer 方法进行前向传播，并更新注意力缓存和卷积缓存。
+            # 调用当前层 layer 的前向传播方法，传入 xs、att_mask、pos_emb、att_cache 和 cnn_cache。
             xs, _, new_att_cache, new_cnn_cache = layer(
                 xs,
                 att_mask,
                 pos_emb,
+                # 根据 factor 对 att_cache 进行下采样。
                 att_cache=att_cache[i][:, :, ::factor, :]
+                # 获取新的注意力缓存 new_att_cache 和卷积神经网络缓存 new_cnn_cache。
                 [:, :, :pos_emb.size(1) - xs.size(1), :]
                 if elayers > 0 else att_cache[:, :, ::factor, :],
                 cnn_cache=cnn_cache[i] if cnn_cache.size(0) > 0 else cnn_cache,
             )
+            # 处理新的缓存
+            # 对新的注意力缓存 new_att_cache 进行处理，获取 cached_att。
             cached_att = new_att_cache[:, :, next_cache_start // factor:, :]
+            # 对新的卷积神经网络缓存 new_cnn_cache 进行处理，获取 cached_cnn。
             cached_cnn = new_cnn_cache.unsqueeze(1)
             cached_att = (cached_att.unsqueeze(3).repeat(1, 1, 1, factor,
                                                          1).flatten(2, 3))
+            # 如果当前是第一个层，则记录 cached_att 的长度为 max_att_len。
             if i == 0:
                 # record length for the first block as max length
                 max_att_len = cached_att.size(2)
+            # 将处理后的 cached_att 和 cached_cnn 分别添加到 r_att_cache 和 r_cnn_cache 列表中。
             r_att_cache.append(cached_att[:, :, :max_att_len, :].unsqueeze(1))
             r_cnn_cache.append(cached_cnn)
 
         chunk_out = xs
-        r_att_cache = torch.cat(r_att_cache, dim=1)  # concat on layers idx
-        r_cnn_cache = torch.cat(r_cnn_cache, dim=1)  # concat on layers
+        r_att_cache = torch.cat(r_att_cache, dim=1)  # concat on layers idx 层索引连接
+        r_cnn_cache = torch.cat(r_cnn_cache, dim=1)  # concat on layers     层连接
 
-        # <---------forward_chunk END--------->
+        # <---------forward_chunk END---------> 前向块推理结束
 
+        # # 计算CTC输出的对数概率。
         log_ctc_probs = self.ctc.log_softmax(chunk_out)
+        # 将对数概率转换成与输入数据相同的数据类型。
         log_probs, log_probs_idx = torch.topk(log_ctc_probs,
                                               self.beam_size,
                                               dim=2)
+        # 将对数概率转换成与输入数据相同的数据类型。
         log_probs = log_probs.to(chunk_xs.dtype)
 
+        # 计算新的右偏移量，作用是过更新偏移量，确保在处理连续的数据块时，模型能够正确地对齐和处理每个数据块。。
         r_offset = offset + chunk_out.shape[1]
         # the below ops not supported in Tensorrt
         # chunk_out_lens = torch.div(chunk_lens, subsampling_rate,
         #                   rounding_mode='floor')
+        # 计算输出数据块的长度。
         chunk_out_lens = chunk_lens // self.subsampling_rate
+        # 增加一个全是1的维度，从(B)变成(B,1)
         r_offset = r_offset.unsqueeze(1)
 
+        # 返回结果
         return (
             log_probs,
             log_probs_idx,
@@ -454,12 +528,13 @@ class StreamingEfficientConformerEncoder(torch.nn.Module):
         self.beam_size = beam_size
         self.encoder = model.encoder
 
-        # Efficient Conformer
+        # Efficient Conformer，高效的Conformer编码器的区别
         self.stride_layer_idx = model.encoder.stride_layer_idx
         self.stride = model.encoder.stride
         self.num_blocks = model.encoder.num_blocks
         self.cnn_module_kernel = model.encoder.cnn_module_kernel
 
+    # 计算下采样因子
     def calculate_downsampling_factor(self, i: int) -> int:
         factor = 1
         for idx, stride_idx in enumerate(self.stride_layer_idx):
@@ -504,9 +579,11 @@ class StreamingEfficientConformerEncoder(torch.nn.Module):
             torch.Tensor: new cache mask, with same shape as the original
                 cache mask
         """
+        # 处理偏移量和下采样
         offset = offset.squeeze(1)  # (b, )
         offset *= self.calculate_downsampling_factor(self.num_blocks + 1)
 
+        # 生成掩码
         T = chunk_xs.size(1)
         chunk_mask = ~make_pad_mask(chunk_lens, T).unsqueeze(1)  # (b, 1, T)
         # B X 1 X T
@@ -514,11 +591,13 @@ class StreamingEfficientConformerEncoder(torch.nn.Module):
         # transpose batch & num_layers dim
         #   Shape(att_cache): (elayers, b, head, cache_t1, d_k * 2)
         #   Shape(cnn_cache): (elayers, b, outsize, cnn_kernel)
+        # 将缓存的维度进行转置，确保它们的形状与后续计算兼容。
         att_cache = torch.transpose(att_cache, 0, 1)
         cnn_cache = torch.transpose(cnn_cache, 0, 1)
 
-        # rewrite encoder.forward_chunk
-        # <---------forward_chunk START--------->
+        # rewrite encoder.forward_chunk,重写向前传播的方法
+        # <---------forward_chunk START---------> 开始块前向传播
+        # 对输入进行全局均值方差归一化，并通过嵌入层和位置编码层获取嵌入表示和位置信息。
         xs = self.global_cmvn(chunk_xs)
         # chunk mask is important for batch inferencing since
         # different sequence in a batch has different length
@@ -541,6 +620,7 @@ class StreamingEfficientConformerEncoder(torch.nn.Module):
             0,
             0,
         )  # for repeat_interleave of new_att_cache
+        # 逐层通过 Conformer 编码器进行前向传播，处理每个层的输入，更新注意力缓存和 CNN 缓存。
         for i, layer in enumerate(self.encoder.encoders):
             factor = self.calculate_downsampling_factor(i)
             # NOTE(xcsong): Before layer.forward
@@ -594,10 +674,12 @@ class StreamingEfficientConformerEncoder(torch.nn.Module):
                 max_cnn_len = new_cnn_cache.size(3)
 
             # update real shape of att_cache and cnn_cache
+            # 将新的注意力缓存和 CNN 缓存添加到列表中。
             r_att_cache.append(new_att_cache[:, :,
                                              -max_att_len:, :].unsqueeze(1))
             r_cnn_cache.append(new_cnn_cache[:, :, :, -max_cnn_len:])
 
+        # 对输出进行归一化（如果需要），然后计算 CTC 的对数概率。
         if self.encoder.normalize_before:
             chunk_out = self.encoder.after_norm(xs)
         else:
@@ -610,6 +692,7 @@ class StreamingEfficientConformerEncoder(torch.nn.Module):
 
         # <---------forward_chunk END--------->
 
+        # 计算 CTC 输出的对数概率，并根据 beam_size 获取前 beam_size 个最可能的候选。
         log_ctc_probs = self.ctc.log_softmax(chunk_out)
         log_probs, log_probs_idx = torch.topk(log_ctc_probs,
                                               self.beam_size,
@@ -756,6 +839,7 @@ def test(xlist, blist, rtol=1e-3, atol=1e-5, tolerate_small_mismatch=True):
                 raise
 
 
+# 导出离线编码器模型。
 def export_offline_encoder(model, configs, args, logger, encoder_onnx_path):
     bz = 32
     seq_len = 100
@@ -840,6 +924,7 @@ def export_offline_encoder(model, configs, args, logger, encoder_onnx_path):
     return onnx_config
 
 
+# 导出在线编码器模型。
 def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
     decoding_chunk_size = args.decoding_chunk_size
     subsampling = model.encoder.embed.subsampling_rate
@@ -998,6 +1083,7 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
     return onnx_config
 
 
+# 导出解码器模型。
 def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
                              decoder_fastertransformer):
     bz, seq_len = 32, 100
