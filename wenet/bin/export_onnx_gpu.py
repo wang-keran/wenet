@@ -721,6 +721,7 @@ class StreamingEfficientConformerEncoder(torch.nn.Module):
         )
 
 
+# 最基础的解码器
 class Decoder(torch.nn.Module):
 
     def __init__(
@@ -765,6 +766,8 @@ class Decoder(torch.nn.Module):
         B, T, F = encoder_out.shape
         bz = self.beam_size
         B2 = B * bz
+        # encoder_out 和 encoder_mask 被调整为适应束搜索的批次大小（B * beam_size），通过重复（repeat）和视图变换（view）。
+        # 处理 hyps_pad_sos_eos 和 r_hyps_pad_sos_eos，分别为正向和反向解码的假设序列，并拆分成 SOS 和 EOS 部分。
         encoder_out = encoder_out.repeat(1, bz, 1).view(B2, T, F)
         encoder_mask = ~make_pad_mask(encoder_lens, T).unsqueeze(1)
         encoder_mask = encoder_mask.repeat(1, bz, 1).view(B2, 1, T)
@@ -778,6 +781,7 @@ class Decoder(torch.nn.Module):
         r_hyps_pad_sos = r_hyps_pad[:, :-1].contiguous()
         r_hyps_pad_eos = r_hyps_pad[:, 1:].contiguous()
 
+        # 正向解码器（self.decoder）处理 encoder_out 和 hyps_pad_sos，返回正向解码器输出 decoder_out 和反向解码器输出 r_decoder_out。
         decoder_out, r_decoder_out, _ = self.decoder(
             encoder_out,
             encoder_mask,
@@ -786,16 +790,21 @@ class Decoder(torch.nn.Module):
             r_hyps_pad_sos,
             self.reverse_weight,
         )
+        # 对 decoder_out 进行 log_softmax 操作，得到对数概率。
+        # 通过 make_pad_mask 创建一个掩码，忽略填充部分。
         decoder_out = torch.nn.functional.log_softmax(decoder_out, dim=-1)
         V = decoder_out.shape[-1]
         decoder_out = decoder_out.view(B2, T2, V)
         mask = ~make_pad_mask(hyps_lens, T2)  # B2 x T2
         # mask index, remove ignore id
+        # 使用 gather 操作从 decoder_out 中选择对应的得分，并应用掩码，忽略填充部分。
         index = torch.unsqueeze(hyps_pad_eos * mask, 2)
         score = decoder_out.gather(2, index).squeeze(2)  # B2 X T2
         # mask padded part
         score = score * mask
         decoder_out = decoder_out.view(B, bz, T2, V)
+        # 如果 reverse_weight 大于零，反向解码器的输出 r_decoder_out 被处理并与正向解码器的得分 score 加权平均。
+        # 这里的 reverse_weight 控制正向和反向解码得分的权重。
         if self.reverse_weight > 0:
             r_decoder_out = torch.nn.functional.log_softmax(r_decoder_out,
                                                             dim=-1)
@@ -806,15 +815,18 @@ class Decoder(torch.nn.Module):
             score = (score * (1 - self.reverse_weight) +
                      self.reverse_weight * r_score)
             r_decoder_out = r_decoder_out.view(B, bz, T2, V)
+        # 最终的得分是所有时间步的得分的总和，并加上 CTC 得分（通过 ctc_weight 加权）。然后通过 torch.argmax 找到得分最高的假设。
         score = torch.sum(score, axis=1)  # B2
         score = torch.reshape(score, (B, bz)) + self.ctc_weight * ctc_score
         best_index = torch.argmax(score, dim=1)
+        # 如果启用了 decoder_fastertransformer，则返回解码器输出和最佳索引；否则，仅返回最佳索引
         if self.decoder_fastertransformer:
             return decoder_out, best_index
         else:
             return best_index
 
 
+# 将 PyTorch 张量（torch.Tensor）转换为 NumPy 数组。
 def to_numpy(tensors):
     out = []
     if type(tensors) == torch.tensor:
@@ -828,6 +840,7 @@ def to_numpy(tensors):
     return out
 
 
+# 逐一比较两个列表中的张量（xlist 和 blist）是否在给定的相对容忍度（rtol）和绝对容忍度（atol）下相等。
 def test(xlist, blist, rtol=1e-3, atol=1e-5, tolerate_small_mismatch=True):
     for a, b in zip(xlist, blist):
         try:
