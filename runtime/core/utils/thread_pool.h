@@ -19,6 +19,7 @@
 //    3. This notice may not be removed or altered from any source
 //    distribution.
 
+// 总结：线程池操作
 #ifndef UTILS_THREAD_POOL_H_
 #define UTILS_THREAD_POOL_H_
 

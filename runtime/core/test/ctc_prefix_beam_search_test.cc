@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：用于测试wenet::CtcPrefixBeamSearch类的逻辑。
+// CtcPrefixBeamSearch是一个用于连接主义时间分类（CTC）前缀波束搜索的算法实现，通常用于自动语音识别（ASR）系统中，以从一系列概率分布中解码出最可能的文本序列。
 #include "decoder/ctc_prefix_beam_search.h"
 
 #include <cmath>

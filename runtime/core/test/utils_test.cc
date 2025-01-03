@@ -19,6 +19,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+// 总结：用于测试wenet::TopK函数。该函数的目的是从一个浮点数数组（或向量）中找出最大的K个值以及它们对应的索引。
 TEST(UtilsTest, TopKTest) {
   using ::testing::ElementsAre;
   using ::testing::FloatNear;

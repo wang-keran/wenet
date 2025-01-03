@@ -19,11 +19,13 @@
 
 namespace wenet {
 
+// 获取当前时间
 class Timer {
  public:
   Timer() : time_start_(std::chrono::steady_clock::now()) {}
+  // 重置计时
   void Reset() { time_start_ = std::chrono::steady_clock::now(); }
-  // return int in milliseconds
+  // return int in milliseconds，返回经过的时间（毫秒）
   int Elapsed() const {
     auto time_now = std::chrono::steady_clock::now();
     return std::chrono::duration_cast<std::chrono::milliseconds>(time_now -

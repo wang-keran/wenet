@@ -53,3 +53,4 @@ target_compile_definitions(algo_test_power
 set_target_properties(algo_test_power PROPERTIES FOLDER test)
 add_test(NAME algo_test_power-test COMMAND algo_test_power)
 
+# 总结：实验脚本

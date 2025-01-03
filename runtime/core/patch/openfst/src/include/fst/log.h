@@ -15,6 +15,7 @@
 //
 // Google-style logging declarations and inline definitions.
 
+// 总结：通过 LogMessage 类和相关的宏及函数，来在 C++ 程序中记录日志和检查条件。
 #ifndef FST_LIB_LOG_H_
 #define FST_LIB_LOG_H_
 

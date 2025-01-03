@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：查看文件是否存在
 #ifndef UTILS_FILE_H_
 #define UTILS_FILE_H_
 

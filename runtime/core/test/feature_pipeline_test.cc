@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：测试了wenet::BlockingQueue<int>和wenet::FeaturePipeline的功能。
 #include <thread>
 #include <vector>
 

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：记录日志
 #ifndef UTILS_LOG_H_
 #define UTILS_LOG_H_
 

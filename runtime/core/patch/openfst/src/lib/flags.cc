@@ -12,6 +12,8 @@
 //
 // Google-style flag handling definitions.
 
+// 总结：这段代码提供了一个处理命令行参数和标志的框架，允许用户定义和使用各种类型的标志来控制程序的行为。
+// 它使用 gflags 库（或类似机制）来管理标志的声明、注册和查询。
 #include <cstring>
 
 #if _MSC_VER

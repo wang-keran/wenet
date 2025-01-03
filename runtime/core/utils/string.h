@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：切割转换等字符串操作
 #ifndef UTILS_STRING_H_
 #define UTILS_STRING_H_
 

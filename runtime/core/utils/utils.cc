@@ -25,6 +25,7 @@
 
 namespace wenet {
 
+// 计算两个浮点数的对数和，避免了直接相加可能导致的数值溢出问题
 float LogAdd(float x, float y) {
   static float num_min = -std::numeric_limits<float>::max();
   if (x <= num_min) return y;
@@ -33,6 +34,7 @@ float LogAdd(float x, float y) {
   return std::log(std::exp(x - xmax) + std::exp(y - xmax)) + xmax;
 }
 
+// 两个数字比大小
 template <typename T>
 struct ValueComp {
   bool operator()(const std::pair<T, int32_t>& lhs,
@@ -44,6 +46,7 @@ struct ValueComp {
 
 // We refer the pytorch topk implementation
 // https://github.com/pytorch/pytorch/blob/master/caffe2/operators/top_k.cc
+// 用于从给定的数据集中提取前k个最大值及其对应的索引。
 template <typename T>
 void TopK(const std::vector<T>& data, int32_t k, std::vector<T>* values,
           std::vector<int>* indices) {

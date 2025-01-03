@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+// 总结：这段代码是一个后处理类的实现，主要用于处理自动语音识别（ASR）系统的输出。它包含了初始化资源、处理空格、删除特定子字符串以及最终处理步骤的方法
 #include "post_processor/post_processor.h"
 #include <sstream>
 #include <vector>

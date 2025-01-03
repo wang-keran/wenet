@@ -57,6 +57,9 @@ using std::string;
 // #define DECLARE_int64(name) extern int64 FLAGS_ ## name
 // #define DECLARE_double(name) extern double FLAGS_ ## name
 
+// 总结：这段代码实现了一个命令行标志（flags）注册和解析的框架，类似于 Google 的
+// gflags 库。
+// 它允许开发者定义全局变量作为命令行参数，并为这些参数提供文档说明、类型信息和默认值。
 template <typename T>
 struct FlagDescription {
   FlagDescription(T* addr, const char* doc, const char* type, const char* file,

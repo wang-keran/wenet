@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：实现了一个阻塞队列，用于多线程间的数据传递。BlockingQueue类提供了Push和Pop方法，用于向队列中添加和取出数据。
 #ifndef UTILS_BLOCKING_QUEUE_H_
 #define UTILS_BLOCKING_QUEUE_H_
 

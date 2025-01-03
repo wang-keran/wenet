@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+// 总结：用于测试wenet::PostProcessor类的ProcessSpace方法。
+// 该方法的主要功能是对输入的字符串进行处理，根据配置选项（如是否转换为小写、语言类型等）添加或修改空格。
 #include "post_processor/post_processor.h"
 
 #include <string>
