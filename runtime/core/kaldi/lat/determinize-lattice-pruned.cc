@@ -19,6 +19,8 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：主要用于处理和优化词图（lattice）的确定化（determinization）过程。
+// 具体来说，这个文件实现了对词图进行剪枝（pruning）和确定化的功能，以减少计算资源的使用并提高效率
 #include <climits>
 #include <vector>
 #include "fstext/determinize-lattice.h"  // for LatticeStringRepository

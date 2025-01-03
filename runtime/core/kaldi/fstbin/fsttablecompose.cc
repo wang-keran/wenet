@@ -131,3 +131,4 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 }
+// 用于组合两个有限状态转换器（FST）的操作

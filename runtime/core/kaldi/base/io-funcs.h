@@ -166,6 +166,7 @@ void ReadBasicType<double>(std::istream& is, bool binary, double* f);
 // the destination.  Caution: if used in Read functions, be careful
 // to initialize the parameters concerned to zero in the default
 // constructor.
+// 从输入流 std::istream 中读取基本类型数据
 template <class T>
 inline void ReadBasicType(std::istream& is, bool binary, T* t, bool add) {
   if (!add) {

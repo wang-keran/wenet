@@ -73,3 +73,4 @@ namespace kaldi {
 */
 
 #endif  // KALDI_BASE_KALDI_TYPES_H_
+// 总结：kaldi兼容的元素类型

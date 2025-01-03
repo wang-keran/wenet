@@ -17,6 +17,10 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：主要用于将语言模型从 ARPA 格式转换为 FST（Finite State
+// Transducer）格式。
+// 这个转换过程可以加快解码速度，并且在语音识别中，语言模型通常以 ARPA
+// 文件形式存在，而解码过程中需要将其转换为 FST 格式以便于处理。
 #include <string>
 
 #include "lm/arpa-lm-compiler.h"

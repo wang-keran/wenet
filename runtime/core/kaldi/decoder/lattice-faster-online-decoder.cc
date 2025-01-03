@@ -276,3 +276,4 @@ template class LatticeFasterOnlineDecoderTpl<fst::VectorFst<fst::StdArc> >;
 template class LatticeFasterOnlineDecoderTpl<fst::ConstFst<fst::StdArc> >;
 
 }  // end namespace kaldi.
+// 总结：线上版解码器

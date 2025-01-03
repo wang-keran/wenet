@@ -157,3 +157,4 @@ class KaldiCompileTimeAssert<true> {
 #endif
 
 #endif  // KALDI_BASE_KALDI_UTILS_H_
+// kaldi的一些其他函数

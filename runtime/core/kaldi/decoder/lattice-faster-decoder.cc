@@ -1094,3 +1094,6 @@ template class LatticeFasterDecoderTpl<fst::ConstFst<fst::StdArc>,
 // LatticeFasterDecoderTpl<fst::VectorGrammarFst, decoder::BackpointerToken>;
 
 }  // end namespace kaldi.
+// 总结：它采用了格状结构（Lattice）来存储和搜索可能的路径，这种结构允许同时考虑多个可能的识别结果，并在后续处理中进行优化和选择。
+// 此外，Lattice Faster
+// Decoder还支持各种加权有限状态机（WFST）和不同的Token类型，这使得它能够适应不同的语音识别系统和应用场景。

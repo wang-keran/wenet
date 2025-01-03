@@ -18,6 +18,7 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：主要用于实现哈希列表（Hash List）的数据结构。
 #ifndef KALDI_UTIL_HASH_LIST_INL_H_
 #define KALDI_UTIL_HASH_LIST_INL_H_
 

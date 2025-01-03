@@ -350,3 +350,4 @@ inline float Hypot(float x, float y) { return hypotf(x, y); }
 }  // namespace kaldi
 
 #endif  // KALDI_BASE_KALDI_MATH_H_
+// 总结：各种公式算法

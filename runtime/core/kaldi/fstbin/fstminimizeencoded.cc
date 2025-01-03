@@ -72,3 +72,4 @@ int main(int argc, char* argv[]) {
   }
   return 0;
 }
+// 总结：在处理有限状态转换图（FST）时，对编码后的FST进行最小化操作

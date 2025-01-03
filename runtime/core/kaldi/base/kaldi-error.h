@@ -44,10 +44,14 @@ void SetProgramName(const char* basename);
 extern int32 g_kaldi_verbose_level;
 
 /// Get verbosity level, usually set via command line '--verbose=' switch.
+// 用于返回全局变量 g_kaldi_verbose_level
+// 的值。这个函数的作用是获取当前的详细级别（verbose
+// level），通常用于控制程序输出的日志信息量。
 inline int32 GetVerboseLevel() { return g_kaldi_verbose_level; }
 
 /// This should be rarely used, except by programs using Kaldi as library;
 /// command-line programs set the verbose level automatically from ParseOptions.
+// 控制 Kaldi 库中的日志输出级别。
 inline void SetVerboseLevel(int32 i) { g_kaldi_verbose_level = i; }
 
 }  // namespace kaldi

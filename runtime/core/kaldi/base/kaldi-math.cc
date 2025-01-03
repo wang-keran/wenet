@@ -29,6 +29,7 @@
 namespace kaldi {
 // These routines are tested in matrix/matrix-test.cc
 
+// 接受一个整数n作为输入，并返回大于或等于n的最小2的幂
 int32 RoundUpToNearestPowerOfTwo(int32 n) {
   KALDI_ASSERT(n > 0);
   n--;
@@ -42,6 +43,7 @@ int32 RoundUpToNearestPowerOfTwo(int32 n) {
 
 static std::mutex _RandMutex;
 
+// 生成一个随机数
 int Rand(struct RandomState* state) {
 #if !defined(_POSIX_THREAD_SAFE_FUNCTIONS)
   // On Windows and Cygwin, just call Rand()
@@ -56,6 +58,7 @@ int Rand(struct RandomState* state) {
 #endif
 }
 
+// 避免在某些系统上产生重复的随机数序列。
 RandomState::RandomState() {
   // we initialize it as Rand() + 27437 instead of just Rand(), because on some
   // systems, e.g. at the very least Mac OSX Yosemite and later, it seems to be
@@ -69,6 +72,7 @@ RandomState::RandomState() {
   seed = unsigned(Rand()) + 27437;
 }
 
+// 根据给定的概率prob返回一个布尔值。它使用Rand函数来决定是否返回true或false。对于非常小的概率值，它采用了一种特殊的方法来提高精度。
 bool WithProb(BaseFloat prob, struct RandomState* state) {
   KALDI_ASSERT(prob >= 0 && prob <= 1.1);  // prob should be <= 1.0,
   // but we allow slightly larger values that could arise from roundoff in
@@ -94,6 +98,7 @@ bool WithProb(BaseFloat prob, struct RandomState* state) {
   }
 }
 
+// 这个函数生成一个在min_val和max_val之间（包括这两个值）的随机整数
 int32 RandInt(int32 min_val, int32 max_val, struct RandomState* state) {
   // This is not exact.
   KALDI_ASSERT(max_val >= min_val);
@@ -125,6 +130,7 @@ int32 RandInt(int32 min_val, int32 max_val, struct RandomState* state) {
 // Returns poisson-distributed random number.
 // Take care: this takes time proportional
 // to lambda.  Faster algorithms exist but are more complex.
+// 生成一个符合泊松分布的随机整数。
 int32 RandPoisson(float lambda, struct RandomState* state) {
   // Knuth's algorithm.
   KALDI_ASSERT(lambda >= 0);
@@ -138,6 +144,7 @@ int32 RandPoisson(float lambda, struct RandomState* state) {
   return k - 1;
 }
 
+// 生成两个符合标准正态分布（均值为0，标准差为1）的随机浮点数
 void RandGauss2(float* a, float* b, RandomState* state) {
   KALDI_ASSERT(a);
   KALDI_ASSERT(b);
@@ -149,6 +156,7 @@ void RandGauss2(float* a, float* b, RandomState* state) {
   *b = u1 * sinf(u2);
 }
 
+// 生成两个符合标准正态分布（均值为0，标准差为1）的随机浮点数
 void RandGauss2(double* a, double* b, RandomState* state) {
   KALDI_ASSERT(a);
   KALDI_ASSERT(b);
@@ -161,3 +169,4 @@ void RandGauss2(double* a, double* b, RandomState* state) {
 }
 
 }  // end namespace kaldi
+// 总结：各种数学算法

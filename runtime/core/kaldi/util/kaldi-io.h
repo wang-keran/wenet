@@ -20,6 +20,7 @@
 #ifndef KALDI_UTIL_KALDI_IO_H_
 #define KALDI_UTIL_KALDI_IO_H_
 
+// 主要负责 Kaldi 的输入输出机制。
 #ifdef _MSC_VER
 #include <fcntl.h>
 #include <io.h>

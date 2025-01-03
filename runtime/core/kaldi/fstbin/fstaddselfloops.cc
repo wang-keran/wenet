@@ -98,3 +98,5 @@ int main(int argc, char* argv[]) {
   }
   return 0;
 }
+// 总结：向有限状态图（FST）中添加自循环，通常用于处理解码图（如HCLG.fst），以确保在解码过程中能够正确传播消歧符号（disambiguation
+// symbols）。

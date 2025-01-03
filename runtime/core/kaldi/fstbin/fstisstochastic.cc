@@ -89,3 +89,4 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 }
+// 总结：有限时间随机输入到状态稳定性

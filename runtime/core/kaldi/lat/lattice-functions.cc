@@ -23,6 +23,7 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：这个文件包含了与 lattice 相关的函数实现。
 #include "lat/lattice-functions.h"
 // #include "hmm/transition-model.h"
 // #include "util/stl-utils.h"

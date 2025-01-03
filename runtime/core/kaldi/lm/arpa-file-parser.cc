@@ -18,6 +18,8 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：主要用于处理 ARPA（Adaptive Radix Prefix）语言模型文件的解析。ARPA
+// 文件是一种用于表示语言模型的格式，通常用于语音识别任务中。
 #include <fst/fstlib.h>
 
 #include <sstream>

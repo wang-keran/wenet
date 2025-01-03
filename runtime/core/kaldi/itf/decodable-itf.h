@@ -118,3 +118,4 @@ class DecodableInterface {
 }  // namespace kaldi
 
 #endif  // KALDI_ITF_DECODABLE_ITF_H_
+// 总结：用于定义解码器如何与声学模型交互，以便计算给定帧的声学似然

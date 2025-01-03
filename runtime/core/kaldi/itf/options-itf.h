@@ -47,3 +47,4 @@ class OptionsItf {
 }  // namespace kaldi
 
 #endif  // KALDI_ITF_OPTIONS_ITF_H_
+// 总结：提供了一个基类，用于定义和管理各种选项，这些选项可以通过命令行进行配置。

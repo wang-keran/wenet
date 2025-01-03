@@ -18,6 +18,7 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：用于处理和操作语音识别中的“lattice”数据结构。
 #include "lat/kaldi-lattice.h"
 #include "fst/script/print-impl.h"
 

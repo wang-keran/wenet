@@ -19,6 +19,9 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
+// 总结：主要用于处理 ARPA（Archive Representation of Probability
+// Arrays）语言模型的编译工作。ARPA
+// 是一种用于表示语言模型的格式，通常用于自然语言处理任务中。
 #include <algorithm>
 #include <functional>
 #include <limits>

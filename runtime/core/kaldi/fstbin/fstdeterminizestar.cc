@@ -112,3 +112,4 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 }
+// 总结：用于确定化有限状态转换器（Finite State Transducer，简称FST）的算法
