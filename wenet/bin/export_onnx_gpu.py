@@ -855,7 +855,7 @@ def test(xlist, blist, rtol=1e-3, atol=1e-5, tolerate_small_mismatch=True):
                 raise
 
 
-# 导出离线编码器模型。
+# 导出离线（非流式）编码器模型。
 def export_offline_encoder(model, configs, args, logger, encoder_onnx_path):
     bz = 32
     seq_len = 100
@@ -974,24 +974,37 @@ def export_offline_encoder(model, configs, args, logger, encoder_onnx_path):
     return onnx_config
 
 
-# 导出在线编码器模型。
+# 导出在线（流式）编码器模型。几个变量分别为：Pytorch模型、配置、命令行参数、日志、编码器ONNX的导出路径。
 def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
+    # 解码块大小
     decoding_chunk_size = args.decoding_chunk_size
+    # 下采样率
     subsampling = model.encoder.embed.subsampling_rate
+    # 文本上下文图
     context = model.encoder.embed.right_context + 1
+    # 解码窗口大小
     decoding_window = (decoding_chunk_size - 1) * subsampling + context
+    # 输入数据形状
+    # 批次大小，32个帧
     batch_size = 32
+    # 音频长度
     audio_len = decoding_window
+    # 特征维度
     feature_size = configs["input_dim"]
+    # 输出大小
     output_size = configs["encoder_conf"]["output_size"]
+    # 输出层数
     num_layers = configs["encoder_conf"]["num_blocks"]
     # in transformer the cnn module will not be available
+    # 这段代码检查是否使用 Transformer 模型，如果 cnn_module_kernel 为 0，则使用 Transformer。
     transformer = False
     cnn_module_kernel = configs["encoder_conf"].get("cnn_module_kernel", 1) - 1
     if not cnn_module_kernel:
         transformer = True
+    # 这些参数用于计算解码过程中所需的缓存大小。
     num_decoding_left_chunks = args.num_decoding_left_chunks
     required_cache_size = decoding_chunk_size * num_decoding_left_chunks
+    # 根据配置选择不同类型的编码器，并将其设置为评估模式。
     if configs["encoder"] == "squeezeformer":
         encoder = StreamingSqueezeformerEncoder(model, required_cache_size,
                                                 args.beam_size)
@@ -1009,16 +1022,21 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
         )
     encoder.eval()
 
-    # begin to export encoder
+    # begin to export encoder，开始导出编码器
     chunk_xs = torch.randn(batch_size,
                            audio_len,
                            feature_size,
                            dtype=torch.float32)
+    # 创建了一个全为 1 的张量，形状为 (1, xs.size(1))，
+    # 数据类型为布尔型，并且与输入张量 xs 位于相同的设备上。xs.size(1) 获取了输入张量 xs 在第一个维度上的大小。
     chunk_lens = torch.ones(batch_size, dtype=torch.int32) * audio_len
 
+    # 这部分代码使用 PyTorch 的 arange 函数生成一个从 0 到 batch_size-1 的一维张量。然后使用 unsqueeze 函数在第二个维度上增加一个维度。
     offset = torch.arange(0, batch_size).unsqueeze(1)
     #  (elayers, b, head, cache_t1, d_k * 2)
+    # 这行代码从配置字典 configs 中获取注意力头的数量。
     head = configs["encoder_conf"]["attention_heads"]
+    # 这行代码从配置字典中获取编码器的输出大小，并计算每个注意力头的维度大小。
     d_k = configs["encoder_conf"]["output_size"] // head
     att_cache = torch.randn(
         batch_size,
@@ -1028,6 +1046,7 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
         d_k * 2,
         dtype=torch.float32,
     )
+    # 创建一个名为 cnn_cache 的张量，用于存储 CNN 模块的缓存。
     cnn_cache = torch.randn(
         batch_size,
         num_layers,
@@ -1036,10 +1055,12 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
         dtype=torch.float32,
     )
 
+    # 创建一个名为 cache_mask 的张量，用于存储缓存掩码。
     cache_mask = torch.ones(batch_size,
                             1,
                             required_cache_size,
                             dtype=torch.float32)
+    # 确定输入和输出的名称。
     input_names = [
         "chunk_xs",
         "chunk_lens",
@@ -1058,6 +1079,7 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
         "r_cnn_cache",
         "r_cache_mask",
     ]
+    # 如果是返回 CTC 对数概率，就要变成这种输出。
     if args.return_ctc_logprobs:
         output_names = [
             "ctc_log_probs",
@@ -1068,6 +1090,7 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
             "r_cnn_cache",
             "r_cache_mask",
         ]
+    # 这段代码的作用是将多个输入张量组合成一个元组 input_tensors，用于在后续的模型导出过程中作为模型的输入。
     input_tensors = (
         chunk_xs,
         chunk_lens,
@@ -1076,18 +1099,23 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
         cnn_cache,
         cache_mask,
     )
+    # 如果是 Transformer 模型，就要删除 cnn_cache。
     if transformer:
         assert (args.return_ctc_logprobs is
                 False), "return_ctc_logprobs is not supported in transformer"
         output_names.pop(6)
 
+    # 获取所有的输入输出名称
     all_names = input_names + output_names
+    # 多种轴，决定输入输出的浮动形状
     dynamic_axes = {}
     for name in all_names:
         # only the first dimension is dynamic
         # all other dimension is fixed
+        # 只有第一维度可以浮动，其他的不行
         dynamic_axes[name] = {0: "B"}
 
+    # 写入onnx文件
     torch.onnx.export(
         encoder,
         input_tensors,
@@ -1101,23 +1129,33 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
         verbose=False,
     )
 
+    # 这段代码的作用是在不计算梯度的上下文中，使用模型 encoder 对输入 speech 和 speech_lens 进行前向传播，并获取多个输出
     with torch.no_grad():
         torch_outs = encoder(chunk_xs, chunk_lens, offset, att_cache,
                              cnn_cache, cache_mask)
     if transformer:
+        # 检查是否使用 Transformer 模型，如果是，则移除第 6 个输出张量。
         torch_outs = list(torch_outs).pop(6)
+    # 使用 ONNX Runtime 创建一个推理会话，并指定使用 CUDA 作为执行提供程序。
     ort_session = onnxruntime.InferenceSession(
         encoder_onnx_path, providers=["CUDAExecutionProvider"])
+    # 创建一个字典 ort_inputs，用于存储 ONNX 推理会话的输入。
     ort_inputs = {}
-
+    # 将输入数据转换为Numpy数组，使用onnxruntime推理会话进行推理
     input_tensors = to_numpy(input_tensors)
+    # 将索引和名称组合成一个字典，用于在后续的模型导出过程中作为模型的输入。
     for idx, name in enumerate(input_names):
         ort_inputs[name] = input_tensors[idx]
+    # 如果是 Transformer 模型，就要删除 cnn_cache。
     if transformer:
         del ort_inputs["cnn_cache"]
+    # 使用 ONNX Runtime 推理会话进行推理。
     ort_outs = ort_session.run(None, ort_inputs)
+    # 检查编码器输出。
     test(to_numpy(torch_outs), ort_outs, rtol=1e-03, atol=1e-05)
+    # 打印结果
     logger.info("export to onnx streaming encoder succeed!")
+    # 规定onnx配置
     onnx_config = {
         "subsampling_rate": subsampling,
         "context": context,
@@ -1130,12 +1168,14 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
         "cnn_module_kernel_cache": cnn_module_kernel,
         "return_ctc_logprobs": args.return_ctc_logprobs,
     }
+    # 返回onnx配置
     return onnx_config
 
 
 # 导出解码器模型。
 def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
                              decoder_fastertransformer):
+    # 规定使用之前的decoder
     bz, seq_len = 32, 100
     beam_size = args.beam_size
     decoder = Decoder(
@@ -1145,8 +1185,10 @@ def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
         beam_size,
         decoder_fastertransformer,
     )
+    # 转为评估模式
     decoder.eval()
 
+    # 生成随机张量
     hyps_pad_sos_eos = torch.randint(low=3,
                                      high=1000,
                                      size=(bz, beam_size, seq_len))
@@ -1158,6 +1200,7 @@ def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
                                        high=1000,
                                        size=(bz, beam_size, seq_len))
 
+    # 获取编码器输出，输出本身，尺寸，ctc得分，长度
     output_size = configs["encoder_conf"]["output_size"]
     encoder_out = torch.randn(bz, seq_len, output_size, dtype=torch.float32)
     encoder_out_lens = torch.randint(low=3,
@@ -1166,6 +1209,7 @@ def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
                                      dtype=torch.int32)
     ctc_score = torch.randn(bz, beam_size, dtype=torch.float32)
 
+    # 规定输入输出名称
     input_names = [
         "encoder_out",
         "encoder_out_lens",
@@ -1175,9 +1219,11 @@ def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
         "ctc_score",
     ]
     output_names = ["best_index"]
+    # 如果是返回decoder_out和best_index，就要加上decoder_out
     if decoder_fastertransformer:
         output_names.insert(0, "decoder_out")
 
+    # 写入onnx文件
     torch.onnx.export(
         decoder,
         (
@@ -1194,6 +1240,7 @@ def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
         do_constant_folding=True,
         input_names=input_names,
         output_names=output_names,
+        # 这些是浮动可变的轴，决定输入输出的形状
         dynamic_axes={
             "encoder_out": {
                 0: "B",
@@ -1222,6 +1269,7 @@ def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
         },
         verbose=False,
     )
+    # 这段代码的作用是在不计算梯度的上下文中，使用模型 encoder 对输入 speech 和 speech_lens 进行前向传播，并获取多个输出
     with torch.no_grad():
         o0 = decoder(
             encoder_out,
@@ -1231,10 +1279,12 @@ def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
             r_hyps_pad_sos_eos,
             ctc_score,
         )
+    # 用显卡跑
     providers = ["CUDAExecutionProvider"]
     ort_session = onnxruntime.InferenceSession(decoder_onnx_path,
                                                providers=providers)
-
+    
+    # 指定输入张量的名称。
     input_tensors = [
         encoder_out,
         encoder_out_lens,
@@ -1245,17 +1295,21 @@ def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
     ]
     ort_inputs = {}
     input_tensors = to_numpy(input_tensors)
+    #名称索引对应
     for idx, name in enumerate(input_names):
         ort_inputs[name] = input_tensors[idx]
 
     # if model.reverse weight == 0,
     # the r_hyps_pad will be removed
     # from the onnx decoder since it doen't play any role
+    # 如果 reverse_weight 为 0，则删除输入字典 ort_inputs 中的 r_hyps_pad_sos_eos 键。
+    # reverse_weight 是一个模型参数，通常用于控制反向解码的权重。如果其值为 0，表示反向解码不被使用，因此可以删除相关的输入。
     if model.reverse_weight == 0:
         del ort_inputs["r_hyps_pad_sos_eos"]
     ort_outs = ort_session.run(None, ort_inputs)
 
     # check decoder output
+    # 测试转换后的onnx模型输出
     if decoder_fastertransformer:
         test(to_numpy(o0), ort_outs, rtol=1e-03, atol=1e-05)
     else:
@@ -1264,6 +1318,7 @@ def export_rescoring_decoder(model, configs, args, logger, decoder_onnx_path,
 
 
 if __name__ == "__main__":
+    # 指定各种参数
     parser = argparse.ArgumentParser(description="export x86_gpu model")
     parser.add_argument("--config", required=True, help="config file")
     parser.add_argument("--checkpoint", required=True, help="checkpoint model")
@@ -1338,9 +1393,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # 设置随机数种子，这行代码使用 torch.manual_seed 函数设置 PyTorch 的随机数种子为 0。
+    # 设置随机数种子可以确保每次运行代码时生成的随机数相同，从而使实验结果具有可重复性。
     torch.manual_seed(0)
+    # 这行代码使用 torch.set_printoptions 函数设置 PyTorch 的打印选项，将打印精度设置为 10 位小数。
+    # 这意味着在打印张量时，小数部分将显示 10 位数字，从而提供更高的精度。
     torch.set_printoptions(precision=10)
 
+    # 读取配置文件和归一化文件
     with open(args.config, "r") as fin:
         configs = yaml.load(fin, Loader=yaml.FullLoader)
     if args.cmvn_file and os.path.exists(args.cmvn_file):
@@ -1360,17 +1420,21 @@ if __name__ == "__main__":
         configs["model_conf"]["ctc_weight"] = args.ctc_weight
     configs["encoder_conf"]["use_dynamic_chunk"] = False
 
+    # 初始化模型并设置为评估模式
     model, configs = init_model(args, configs)
     model.eval()
 
+    # 没有路径就创建路径
     if not os.path.exists(args.output_onnx_dir):
         os.mkdir(args.output_onnx_dir)
     encoder_onnx_path = os.path.join(args.output_onnx_dir, "encoder.onnx")
     export_enc_func = None
+    # 流式就先保证块大小和剩余块数大于0，再引入流式编码器，没有剩余块那就是非流式的
     if args.streaming:
         assert args.decoding_chunk_size > 0
         assert args.num_decoding_left_chunks > 0
         export_enc_func = export_online_encoder
+    # 非流式直接引入就行
     else:
         export_enc_func = export_offline_encoder
 
@@ -1378,6 +1442,7 @@ if __name__ == "__main__":
                                   encoder_onnx_path)
 
     decoder_onnx_path = os.path.join(args.output_onnx_dir, "decoder.onnx")
+    # 导出重打分的解码器
     export_rescoring_decoder(
         model,
         configs,
@@ -1387,6 +1452,7 @@ if __name__ == "__main__":
         args.decoder_fastertransformer,
     )
 
+    # 如果是 fp16，就要转换为fp16再保存
     if args.fp16:
         try:
             import onnxmltools
@@ -1407,6 +1473,7 @@ if __name__ == "__main__":
         onnxmltools.utils.save_model(decoder_onnx_model, decoder_onnx_path)
     # dump configurations
 
+    # 保存配置文件
     config_dir = os.path.join(args.output_onnx_dir, "config.yaml")
     with open(config_dir, "w") as out:
         yaml.dump(onnx_config, out)
