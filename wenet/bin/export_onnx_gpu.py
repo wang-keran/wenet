@@ -1477,3 +1477,5 @@ if __name__ == "__main__":
     config_dir = os.path.join(args.output_onnx_dir, "config.yaml")
     with open(config_dir, "w") as out:
         yaml.dump(onnx_config, out)
+
+# 显卡版本导出模型完成
