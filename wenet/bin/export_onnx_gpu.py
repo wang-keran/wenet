@@ -862,22 +862,33 @@ def export_offline_encoder(model, configs, args, logger, encoder_onnx_path):
     beam_size = args.beam_size
     feature_size = configs["input_dim"]
 
+    # 生成一个随机的语音特征张量和语音长度张量。
     speech = torch.randn(bz, seq_len, feature_size, dtype=torch.float32)
     speech_lens = torch.randint(low=10,
                                 high=seq_len,
                                 size=(bz, ),
                                 dtype=torch.int32)
+    # 创建一个编码器对象，并将其设置为评估模式，把encoder和ctc一起放在新的encoder.onnx中了。
     encoder = Encoder(model.encoder, model.ctc, beam_size)
     encoder.eval()
 
+    # 将pytorch模型导出为onnx模型
     torch.onnx.export(
+        # 要导出的 PyTorch 模型。
         encoder,
+        # 模型的输入张量，speech 表示输入的语音特征，speech_lens 表示语音特征的长度。
         (speech, speech_lens),
+        # 导出的 ONNX 模型文件的路径。
         encoder_onnx_path,
+        # 导出模型时包含模型参数。
         export_params=True,
+        #指定 ONNX 的操作集版本。
         opset_version=13,
+        # 在导出过程中执行常量折叠优化。
         do_constant_folding=True,
+        # 指定输入张量的名称。
         input_names=["speech", "speech_lengths"],
+        # 指定输出张量的名称，输出张量是模型前向传播的结果，前向传播相当于推理过程，这里指定了输出的格式。
         output_names=[
             "encoder_out",
             "encoder_out_lens",
@@ -885,52 +896,75 @@ def export_offline_encoder(model, configs, args, logger, encoder_onnx_path):
             "beam_log_probs",
             "beam_log_probs_idx",
         ],
+        # 指定动态轴，用于支持可变长度的输入和输出。动态轴指定的这些维度可以在推理时动态变化不固定
         dynamic_axes={
+            # 语音
             "speech": {
+                # 第 0 维表示批量大小（B），第 1 维表示时间步数（T）。
                 0: "B",
                 1: "T"
             },
+            # 语音块长度
             "speech_lengths": {
+                # 第 0 维表示批量大小（B）。
                 0: "B"
             },
+            # 编码器输出（因为输入音频块大小是浮动的）
             "encoder_out": {
+                # 第 0 维表示批量大小（B），第 1 维表示输出时间步数（T_OUT）。
                 0: "B",
                 1: "T_OUT"
             },
+            # 编码器输出长度（因为输入音频长度大小是浮动的）
             "encoder_out_lens": {
+                # 第 0 维表示批量大小（B）。
                 0: "B"
             },
+            # CTC的对数概率（torch自带的方法）因为输入音频长度不同所以有变化
             "ctc_log_probs": {
+                # 第 0 维表示批量大小（B），第 1 维表示输出时间步数（T_OUT）。
                 0: "B",
                 1: "T_OUT"
             },
+            # 束搜索算法的输出概率，因为输入音频长度不同所以有变化
             "beam_log_probs": {
+                # 第 0 维表示批量大小（B），第 1 维表示输出时间步数（T_OUT）。
                 0: "B",
                 1: "T_OUT"
             },
+            # 束搜索的索引也浮动，因为输入长度是动态的，所以输出也是动态的
             "beam_log_probs_idx": {
+                # 第 0 维表示批量大小（B），第 1 维表示输出时间步数（T_OUT）。
                 0: "B",
                 1: "T_OUT"
             },
         },
+        # 禁用详细日志输出。
         verbose=False,
     )
 
+    # 这段代码的作用是在不计算梯度的上下文中，使用模型 encoder 对输入 speech 和 speech_lens 进行前向传播，并获取多个输出
     with torch.no_grad():
         o0, o1, o2, o3, o4 = encoder(speech, speech_lens)
 
+    # 这段代码的作用是使用 ONNX Runtime 创建一个推理会话，并指定使用 CUDA 作为执行提供程序
     providers = ["CUDAExecutionProvider"]
     ort_session = onnxruntime.InferenceSession(encoder_onnx_path,
                                                providers=providers)
+    # 将输入数据转换为Numpy数组，使用onnxruntime推理会话进行推理
     ort_inputs = {
         "speech": to_numpy(speech),
         "speech_lengths": to_numpy(speech_lens),
     }
+    # 进行推理
     ort_outs = ort_session.run(None, ort_inputs)
 
-    # check encoder output
+    # check encoder output，检查编码器输出
+    # 测试导出的onnx模型
     test(to_numpy([o0, o1, o2, o3, o4]), ort_outs)
+    # 记录成功导出的信息
     logger.info("export offline onnx encoder succeed!")
+    # 返回onnx配置
     onnx_config = {
         "beam_size": args.beam_size,
         "reverse_weight": args.reverse_weight,
