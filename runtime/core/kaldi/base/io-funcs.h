@@ -19,6 +19,7 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
+// 头文件最全，应该是总管
 #ifndef KALDI_BASE_IO_FUNCS_H_
 #define KALDI_BASE_IO_FUNCS_H_
 
