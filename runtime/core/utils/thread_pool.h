@@ -54,7 +54,7 @@ class ThreadPool {
   bool stop;
 };
 
-// the constructor just launches some amount of workers
+// the constructor just launches some amount of workers初始化
 inline ThreadPool::ThreadPool(size_t threads) : stop(false) {
   for (size_t i = 0; i < threads; ++i)
     workers.emplace_back([this] {
@@ -75,7 +75,7 @@ inline ThreadPool::ThreadPool(size_t threads) : stop(false) {
     });
 }
 
-// add new work item to the pool
+// add new work item to the pool加入线程池
 template <class F, class... Args>
 auto ThreadPool::enqueue(F&& f, Args&&... args)
     -> std::future<typename std::result_of<F(Args...)>::type> {
@@ -99,7 +99,7 @@ auto ThreadPool::enqueue(F&& f, Args&&... args)
   return res;
 }
 
-// the destructor joins all threads
+// the destructor joins all threads析构函数结束
 inline ThreadPool::~ThreadPool() {
   {
     std::unique_lock<std::mutex> lock(queue_mutex);
