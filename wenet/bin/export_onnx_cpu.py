@@ -35,6 +35,7 @@ except ImportError:
     sys.exit(1)
 
 
+# 获取输入信息的
 def get_args():
     parser = argparse.ArgumentParser(description='export your script model')
     parser.add_argument('--config', required=True, help='config file')
@@ -56,6 +57,7 @@ def get_args():
     return args
 
 
+# 转换成numpy列表
 def to_numpy(tensor):
     if tensor.requires_grad:
         return tensor.detach().cpu().numpy()
@@ -63,6 +65,7 @@ def to_numpy(tensor):
         return tensor.cpu().numpy()
 
 
+# 打印输入输出信息的
 def print_input_output_info(onnx_model, name, prefix="\t\t"):
     input_names = [node.name for node in onnx_model.graph.input]
     input_shapes = [[d.dim_value for d in node.type.tensor_type.shape.dim]
@@ -76,12 +79,15 @@ def print_input_output_info(onnx_model, name, prefix="\t\t"):
     print("{}{} output shapes : {}".format(prefix, name, output_shapes))
 
 
+# 导出编码器
 def export_encoder(asr_model, args):
     print("Stage-1: export encoder")
+    # 编码器和前向函数直接用wenet里现有的，输出路径用输入的
     encoder = asr_model.encoder
     encoder.forward = encoder.forward_chunk
     encoder_outpath = os.path.join(args['output_dir'], 'encoder.onnx')
 
+    # 准备转换编码器的输入
     print("\tStage-1.1: prepare inputs for encoder")
     chunk = torch.randn(
         (args['batch'], args['decoding_window'], args['feature_size']))
@@ -104,18 +110,23 @@ def export_encoder(asr_model, args):
     #   model that supports different chunks please see:
     #   https://github.com/wenet-e2e/wenet/pull/1174
 
+    # 剩余块数大于0,说明是流式模型
     if args['left_chunks'] > 0:  # 16/4
         required_cache_size = args['chunk_size'] * args['left_chunks']
+        # 指定偏移量（从某个基准点到目标位置的偏移量）
         offset = required_cache_size
-        # Real cache
+        # Real cache，真实缓存，流式模型需要真实的缓存和掩码处理连续的数据块，以便在识别中保持上下文信息
+        # 生成全是0的张量，形状为(args['num_blocks'], args['head'], required_cache_size, args['output_size'] // args['head'] * 2)
         att_cache = torch.zeros(
             (args['num_blocks'], args['head'], required_cache_size,
              args['output_size'] // args['head'] * 2))
-        # Real mask
+        # Real mask，真实掩码，全是1
         att_mask = torch.ones(
             (args['batch'], 1, required_cache_size + args['chunk_size']),
             dtype=torch.bool)
+        # 选取所有批次样本，选取整个第二维，选取从0到required_cache_size的所有数据赋值为0
         att_mask[:, :, :required_cache_size] = 0
+    # 剩余块数小于0,非流式模型
     elif args['left_chunks'] <= 0:  # 16/-1, -1/-1, 16/0
         required_cache_size = -1 if args['left_chunks'] < 0 else 0
         # Fake cache
@@ -123,11 +134,14 @@ def export_encoder(asr_model, args):
                                  args['output_size'] // args['head'] * 2))
         # Fake mask
         att_mask = torch.ones((0, 0, 0), dtype=torch.bool)
+    # 卷积神经网络缓存
     cnn_cache = torch.zeros(
         (args['num_blocks'], args['batch'], args['output_size'],
          args['cnn_module_kernel'] - 1))
+    # 输入形状
     inputs = (chunk, offset, required_cache_size, att_cache, cnn_cache,
               att_mask)
+    # 打印输入规定
     print("\t\tchunk.size(): {}\n".format(chunk.size()),
           "\t\toffset: {}\n".format(offset),
           "\t\trequired_cache: {}\n".format(required_cache_size),
@@ -135,20 +149,27 @@ def export_encoder(asr_model, args):
           "\t\tcnn_cache.size(): {}\n".format(cnn_cache.size()),
           "\t\tatt_mask.size(): {}\n".format(att_mask.size()))
 
+    # 准备开始存储编码器
     print("\tStage-1.2: torch.onnx.export")
+    # 动态轴，可以浮动的数据
     dynamic_axes = {
+        # 块大小
         'chunk': {
             1: 'T'
         },
+        # 注意力缓存
         'att_cache': {
             2: 'T_CACHE'
         },
+        # 注意力掩码，遮蔽未来信息
         'att_mask': {
             2: 'T_ADD_T_CACHE'
         },
+        # 输出
         'output': {
             1: 'T'
         },
+        # 反向注意力卷积神经网络缓存
         'r_att_cache': {
             2: 'T_CACHE'
         },
