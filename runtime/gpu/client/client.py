@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#argparse：用于解析命令行参数，使得脚本在运行时可以通过命令行传递参数，从而灵活地设置脚本中的各种参数。
+#   multiprocessing.Pool：用于创建进程池，实现多进程并行处理任务，提高处理效率。
+# numpy：用于高效的数值计算和数组操作，通常在处理音频数据时会用到。
+
+#通过这些库的结合使用，可以实现高效的多进程音频处理任务。
+
 import multiprocessing
 from multiprocessing import Pool
 

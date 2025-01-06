@@ -14,6 +14,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# 这个脚本加载了一个Lhotse格式的清单文件，并将其发送到服务器进行并行解码。
+
 """
 This script loads a manifest in lhotse format and sends it to the server
 for decoding, in parallel.

@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+# 运行manifest的脚本
 serveraddr=localhost
 manifest_path=/myworkspace/aishell-test-dev-manifests/data/fbank/aishell_cuts_test.jsonl.gz
 exp_dir=model_repo_stateful_trt_exp1
