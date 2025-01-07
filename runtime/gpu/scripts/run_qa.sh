@@ -13,11 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# 设置cuda设备0,从第0步开始到第二步
 export CUDA_VISIBLE_DEVICES="0"
 stage=0
 stop_stage=2
 
-# aishell small offline model
+# aishell small offline model下载预训练模型
 pretrained_model_link=https://wenet-1256283475.cos.ap-shanghai.myqcloud.com/models/aishell/20211025_conformer_exp.tar.gz
 # wenetspeech large offline model
 # pretrained_model_link=https://wenet-1256283475.cos.ap-shanghai.myqcloud.com/models/wenetspeech/20211025_conformer_exp.tar.gz
@@ -30,6 +31,7 @@ model_dir=$(pwd)/${pretrained_model_name}
 onnx_model_dir=$(pwd)/${pretrained_model_name}_onnx
 mkdir -p $onnx_model_dir
 
+# 导出ONNX模型
 if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
    echo "export to onnx files"
    wget ${pretrained_model_link} --no-check-certificate
@@ -48,7 +50,7 @@ if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
    cd -
 fi
 
-# For streaming model
+# For streaming model导出ONNX模型
 if [ ${stage} -le 10 ] && [ ${stop_stage} -ge 10 ]; then
    echo "export to onnx files"
    wget ${pretrained_model_link} --no-check-certificate
@@ -68,6 +70,7 @@ if [ ${stage} -le 10 ] && [ ${stop_stage} -ge 10 ]; then
    cd -
 fi
 
+# 复制文件
 if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
    echo "prepare model repo for triton"
 

@@ -34,6 +34,8 @@ import argparse
 import numpy
 
 
+# 用于测量和比较ONNX Runtime性能的脚本。它可以帮助用户评估ONNX模型在GPU上的推理性能，特别是在不同运行时环境下的表现
+# 这个函数定义了一个命令行参数解析器，用于配置推理任务的各种参数，包括批量大小、序列长度、ONNX 文件路径、日志文件路径、模型类型以及是否禁用 GPU 和 I/O 绑定。
 def get_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -94,6 +96,7 @@ def get_parser():
     return parser
 
 
+# 用于为输出缓冲区分配内存
 def allocateOutputBuffers(output_buffers,
                           output_buffer_max_sizes,
                           device,
@@ -106,6 +109,7 @@ def allocateOutputBuffers(output_buffers,
         output_buffers.append(torch.empty(i, dtype=data_type, device=device))
 
 
+# 用于计算和返回一系列与延迟相关的统计数据
 def get_latency_result(latency_list, batch_size):
     latency_ms = sum(latency_list) / float(len(latency_list)) * 1000.0
     latency_variance = numpy.var(latency_list, dtype=numpy.float64) * 1000.0
@@ -132,6 +136,7 @@ def get_latency_result(latency_list, batch_size):
     }
 
 
+# 用于生成用于ONNX Runtime的输入数据
 def create_onnxruntime_input(
     batch_size,
     sequence_length,
@@ -189,6 +194,7 @@ def create_onnxruntime_input(
     return inputs
 
 
+# 用于执行推理并测量其延迟
 def inference_ort(
     ort_session,
     ort_inputs,
@@ -221,6 +227,7 @@ IO_BINDING_DATA_TYPE_MAP = {
 }
 
 
+# 用于在 ONNX Runtime 中使用 I/O 绑定进行推理
 def inference_ort_with_io_binding(
     ort_session,
     ort_inputs,
@@ -458,3 +465,5 @@ if __name__ == "__main__":
     with open(args.log, "w") as log_f:
         for result in results:
             log_f.write(f"{result}\n")
+
+# 总结：通过ONNX Runtime执行ONNX模型的推理

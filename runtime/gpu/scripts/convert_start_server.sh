@@ -18,9 +18,10 @@
 onnx_model_dir=/ws/onnx_model
 model_repo=/ws/model_repo
 
-# Convert config.pbtxt in model_repo and move models
+# Convert config.pbtxt in model_repo and move models。将 config.pbtxt 文件转换并移动到 model_repo 中的模型目录中。
 python3 scripts/convert.py --config=$onnx_model_dir/train.yaml --vocab=$onnx_model_dir/words.txt \
         --model_repo=$model_repo --onnx_model_dir=$onnx_model_dir
 
-# Start server
+#--vocab=$onnx_model_dir/words.txt 
+# Start server，启动服务端，服务端需要cuda
 tritonserver --model-repository=${model_repo} --pinned-memory-pool-byte-size=1024000000 --cuda-memory-pool-byte-size=0:1024000000
