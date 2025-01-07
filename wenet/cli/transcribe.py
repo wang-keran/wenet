@@ -76,6 +76,7 @@ def get_args():
     return args
 
 
+# 这个文件夹的主管，负责使用模型
 def main():
     args = get_args()
 
@@ -100,3 +101,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# cli文件夹处理语音转文字的任务

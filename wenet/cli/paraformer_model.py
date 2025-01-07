@@ -13,6 +13,10 @@ from wenet.text.paraformer_tokenizer import ParaformerTokenizer
 
 class Paraformer:
 
+    # 加载模型文件（final.zip）并使用 PyTorch 的 torch.jit.load 方法进行加载。
+    # 设置重新采样率。
+    # 根据 device 参数确定模型运行的设备（GPU 或 CPU）。
+    # 加载一个名为 units.txt 的文件，该文件可能包含模型的词汇表或符号表，用于初始化 ParaformerTokenizer。
     def __init__(self, model_dir: str, resample_rate: int = 16000) -> None:
 
         model_path = os.path.join(model_dir, 'final.zip')
@@ -92,10 +96,13 @@ class Paraformer:
         result = self.transcribe_batch([audio_file], tokens_info)[0]
         return result
 
+    # 对齐功能（align）当前尚未被支持。
     def align(self, audio_file: str, label: str) -> dict:
         raise NotImplementedError("Align is currently not supported")
 
 
+# 加载paraformer模型。准确预测输出序列长度和从encoder的输出中提取隐层表征作为decoder的输入。
+# 具体来说，Paraformer通过一个预测器（Predictor）来预测文字个数，从而提高识别的准确性。
 def load_model(model_dir: str = None,
                gpu: int = -1,
                device: str = "cpu") -> Paraformer:
@@ -108,3 +115,5 @@ def load_model(model_dir: str = None,
     paraformer.device = torch.device(device)
     paraformer.model.to(device)
     return paraformer
+
+# 总结：加载paraformer模型

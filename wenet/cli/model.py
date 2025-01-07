@@ -58,6 +58,7 @@ class Model:
         else:
             self.context_graph = None
 
+    # 从音频文件中提取特征
     def compute_feats(self, audio_file: str) -> torch.Tensor:
         waveform, sample_rate = torchaudio.load(audio_file, normalize=False)
         waveform = waveform.to(torch.float)
@@ -80,6 +81,7 @@ class Model:
         feats = feats.unsqueeze(0)
         return feats
 
+    # 计算特征，前向传播，CTC解码，注意力对CTC重评分，生成结果字典
     @torch.no_grad()
     def _decode(self,
                 audio_file: str,
@@ -135,9 +137,11 @@ class Model:
             result['tokens'] = tokens_info
         return result
 
+    # 返回生成的音频解码结果
     def transcribe(self, audio_file: str, tokens_info: bool = False) -> dict:
         return self._decode(audio_file, tokens_info)
 
+    # 将输入的字符串 label 转换成一系列标记（tokens）
     def tokenize(self, label: str):
         # TODO(Binbin Zhang): Support BPE
         tokens = []
@@ -153,10 +157,12 @@ class Model:
                 token_list.append(self.symbol_table['<unk>'])
         return token_list
 
+    # 对音频文件 audio_file 和标签文本 label 进行对齐操作
     def align(self, audio_file: str, label: str) -> dict:
         return self._decode(audio_file, True, label)
 
 
+# 加载模型
 def load_model(language: str = None,
                model_dir: str = None,
                gpu: int = -1,

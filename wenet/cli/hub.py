@@ -22,6 +22,7 @@ import requests
 import tqdm
 
 
+# 从给定的URL下载文件到指定的目标目录，并处理.tar.gz格式的压缩文件
 def download(url: str, dest: str, only_child=True):
     """ download from url to dest
     """
@@ -85,6 +86,8 @@ class Hub(object):
     def __init__(self) -> None:
         pass
 
+    # 根据输入的语言 lang 获取相应的模型文件路径。
+    # 如果指定的语言不在 Hub.Assets 中，则会输出错误信息并退出程序。如果模型文件夹不存在，则会创建该文件夹，并从指定的URL下载模型文件到该文件夹中。
     @staticmethod
     def get_model_by_lang(lang: str) -> str:
         if lang not in Hub.Assets.keys():
@@ -116,3 +119,5 @@ class Hub(object):
         model_url = model_info['Url']
         download(model_url, model_dir, only_child=True)
         return model_dir
+
+# 总结：下载和查找模型文件
