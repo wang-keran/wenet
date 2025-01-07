@@ -73,6 +73,7 @@ class DualTransformerEncoder(TransformerEncoder):
                          head_dim, selfattention_layer_type, mlp_type,
                          mlp_bias, n_expert, n_expert_activated)
 
+    # 用于对输入的音频特征进行编码。在这个方法中，我们首先对输入的音频特征进行全局归一化处理，然后调用 TransformerEncoder 类的 embed 方法对音频特征进行编码。
     def forward_full(
         self,
         xs: torch.Tensor,
@@ -152,6 +153,7 @@ class DualConformerEncoder(ConformerEncoder):
             n_kv_head, head_dim, mlp_type, mlp_bias, n_expert,
             n_expert_activated)
 
+    # 处理输入的音频数据 xs，并返回处理后的特征 xs 和掩码 masks
     def forward_full(
         self,
         xs: torch.Tensor,
