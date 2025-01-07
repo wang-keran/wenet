@@ -51,20 +51,20 @@ class TritonPythonModel:
         # You must parse model_config. JSON string is not parsed here
         self.model_config = model_config = json.loads(args['model_config'])
 
-        # get device
+        # get device# get device根据args字典中的model_instance_kind值来确定模型运行的设备类型。如果model_instance_kind为"GPU"，则将设备设置为'cuda'，否则设置为'cpu'。这一逻辑确保了模型能够在适当的硬件上运行。
         if args["model_instance_kind"] == "GPU":
             self.device = 'cuda'
         else:
             self.device = 'cpu'
 
-        # get parameter configurations
+        # get parameter configurations使用解析后的model_config和确定的设备类型来初始化WenetModel对象，并将其存储在self.model属性中。
         self.model = WenetModel(self.model_config, self.device)
 
-        # Get OUTPUT0 configuration
+        # Get OUTPUT0 configuration获取模型配置中的输出配置（如OUTPUT0），并将其数据类型从Triton类型转换为NumPy类型。
         output0_config = pb_utils.get_output_config_by_name(
             model_config, "OUTPUT0")
 
-        # Convert Triton types to numpy types
+        # Convert Triton types to numpy types将triton格式转为numpy格式
         self.output0_dtype = pb_utils.triton_string_to_numpy(
             output0_config['data_type'])
 
@@ -72,6 +72,7 @@ class TritonPythonModel:
         self.seq_states = {}
         print("Finish Init")
 
+    # 处理传入的请求列表requests，并生成相应的响应列表responses
     def execute(self, requests):
         """
         requests : list
@@ -179,6 +180,7 @@ class TritonPythonModel:
         assert len(requests) == len(responses)
         return responses
 
+    # 结束收尾
     def finalize(self):
         """`finalize` is called only once when the model is being unloaded.
         Implementing `finalize` function is OPTIONAL. This function allows
