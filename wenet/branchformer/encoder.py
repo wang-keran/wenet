@@ -29,6 +29,7 @@ from wenet.utils.class_utils import (
 class BranchformerEncoder(BaseEncoder):
     """Branchformer encoder module."""
 
+    # 初始化函数，定义了BranchformerEncoder类的初始化方法，用于初始化BranchformerEncoder类的实例。
     def __init__(
         self,
         input_size: int,
@@ -86,6 +87,7 @@ class BranchformerEncoder(BaseEncoder):
             head_dim,
         )
 
+        # 这里用了头文件cgmlp.py中的ConvolutionalGatingMLP类
         cgmlp_layer = ConvolutionalGatingMLP
         cgmlp_layer_args = (
             output_size,
@@ -121,6 +123,7 @@ class BranchformerEncoder(BaseEncoder):
         self.encoders = LayerDropModuleList(
             p=stochastic_depth_rate,
             modules=[
+                # 这里用了头文件encoder_layer
                 BranchformerEncoderLayer(
                     output_size,
                     WENET_ATTENTION_CLASSES[selfattention_layer_type](
@@ -175,3 +178,9 @@ class LayerDropModuleList(torch.nn.ModuleList):
         for i, m in enumerate(super().__iter__()):
             if not self.training or (dropout_probs[i] > self.p[i]):
                 yield m
+
+# 总结：向前寻找并返回最终的输出张量 ys 和掩码 masks
+# 计算前向传播是神经网络训练和推理的基础步骤之一。
+# 在训练过程中，前向传播用于计算预测输出和损失函数；在推理过程中，前向传播用于根据输入数据生成预测结果。
+# 前向传播（Forward Propagation）是指在神经网络中，信号从输入层经过隐藏层最终到达输出层的过程。
+# 在这个过程中，每一层的神经元将上一层传来的信号通过权重和偏置计算得到，并通过激活函数进行处理，最终产生输出

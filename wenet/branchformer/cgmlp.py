@@ -27,6 +27,8 @@ import torch.nn as nn
 from wenet.utils.class_utils import WENET_ACTIVATION_CLASSES
 
 
+# 是一种结合了卷积操作和门控机制的网络单元，通过动态调整特征的重要性来增强模型的表示能力。
+# 它在处理序列数据时特别有用，尤其是在需要利用历史信息来进行预测的场景中。
 class ConvolutionalSpatialGatingUnit(torch.nn.Module):
     """Convolutional Spatial Gating Unit (CSGU)."""
 
@@ -131,6 +133,8 @@ class ConvolutionalSpatialGatingUnit(torch.nn.Module):
         return out, new_cache
 
 
+# 它继承自torch.nn.Module，是一个基于PyTorch框架实现的神经网络模型。
+# cgMLP结合了卷积空间门控单元（Convolutional Spatial Gating Unit, CSGU）和多层感知机（MLP）的特点，用于处理序列数据。
 class ConvolutionalGatingMLP(torch.nn.Module):
     """Convolutional Gating MLP (cgMLP)."""
 
@@ -192,3 +196,5 @@ class ConvolutionalGatingMLP(torch.nn.Module):
         out = xs_pad
 
         return out, new_cnn_cache
+
+# 总结：文件是Branchformer架构中的一个关键组成部分，负责实现卷积门控分支，以增强模型对语音数据的处理能力。给encoder.py用的

@@ -38,6 +38,7 @@ class BranchformerEncoderLayer(torch.nn.Module):
         stochastic_depth_rate (float): stochastic depth probability
     """
 
+    # 初始化神经网络模块的参数和结构
     def __init__(
         self,
         size: int,
@@ -204,6 +205,7 @@ class BranchformerEncoderLayer(torch.nn.Module):
 
         return x, mask, new_att_cache, new_cnn_cache
 
+    # 该方法定义了一个包含两个分支（多头注意力模块和卷积门控MLP）的神经网络层的前向传播过程：
     def forward(
         self,
         x: torch.Tensor,
@@ -243,3 +245,9 @@ class BranchformerEncoderLayer(torch.nn.Module):
             stoch_layer_coeff = 1.0 / (1 - self.stochastic_depth_rate)
         return self._forward(x, mask, pos_emb, mask_pad, att_cache, cnn_cache,
                              stoch_layer_coeff)
+
+    # 在这个forward方法中，首先处理了随机深度（stochastic depth）的逻辑，然后根据是否使用两个分支（多头注意力模块和卷积门控MLP）以及合并方法（拼接、学习平均或固定平均）来合并两个分支的输出。
+    # 最后，对合并后的输出进行归一化，并返回输出、掩码以及更新后的缓存。
+    
+# 总结：是 WeNet 框架中 Branchformer 模型的一部分，具体负责定义和实现 Branchformer 编码器层。
+# Branchformer 是一种并行分支架构，旨在捕捉语音识别中的全局和局部依赖关系。
