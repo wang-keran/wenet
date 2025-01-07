@@ -69,3 +69,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# 总结：是一个Python脚本，用于导出PyTorch模型，包括普通模型和量化模型。
+# 它使用了argparse库来解析命令行参数，yaml库来读取配置文件，以及torch库来进行模型初始化和导出。
+# 将模型导出成jit文件，可以快速加载和运行

@@ -40,10 +40,10 @@ from wenet.utils.train_utils import (
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description='training your network')
+    parser = argparse.ArgumentParser(description='training your network')   # 训练神经网络
     parser.add_argument('--train_engine',
                         default='torch_ddp',
-                        choices=['torch_ddp', 'torch_fsdp', 'deepspeed'],
+                        choices=['torch_ddp', 'torch_fsdp', 'deepspeed'],   # 只能选torch_ddp和deepspeed
                         help='Engine for paralleled training')
     # set default value of device to "cuda", avoiding the modify of original scripts
     parser.add_argument('--device',
@@ -69,40 +69,40 @@ def get_args():
 #   details of the error (e.g. time, rank, host, pid, traceback, etc).
 @record
 def main():
-    args = get_args()
+    args = get_args()   # 获取输入参数
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)s %(message)s')
 
-    # Set random seed
+    # Set random seed随机种子,统一规定为777保证每次都能复现
     torch.manual_seed(777)
 
-    # Read config
+    # Read config读取文件的安全保证
     with open(args.config, 'r') as fin:
         configs = yaml.load(fin, Loader=yaml.FullLoader)
     if len(args.override_config) > 0:
         configs = override_config(configs, args.override_config)
 
-    # init tokenizer
+    # init tokenizer这行代码的作用是初始化一个分词器（tokenizer），用于将文本数据转换为模型可以处理的格式。
     tokenizer = init_tokenizer(configs)
 
-    # Init env for ddp OR deepspeed
+    # Init env for ddp OR deepspeed初始化环境（两种之一）
     _, _, rank = init_distributed(args)
 
-    # Get dataset & dataloader
+    # Get dataset & dataloader获取数据集
     train_dataset, cv_dataset, train_data_loader, cv_data_loader = \
         init_dataset_and_dataloader(args, configs, tokenizer)
 
-    # Do some sanity checks and save config to arsg.model_dir
+    # Do some sanity checks and save config to arsg.model_dir做保存检查
     configs = check_modify_and_save_config(args, configs,
                                            tokenizer.symbol_table)
 
-    # Init asr model from configs
+    # Init asr model from configs初始化模型
     model, configs = init_model(args, configs)
 
     if hasattr(args, 'lora_reinit') and args.lora_reinit:
         reinit_lora(model, args, configs, tokenizer)
 
-    # Check model is jitable & print model archtectures
+    # Check model is jitable & print model archtectures打印模型结构信息等数据
     trace_and_print_model(args, model)
 
     # Tensorboard summary
@@ -188,3 +188,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# 总结：从初始化到训练模型的脚本

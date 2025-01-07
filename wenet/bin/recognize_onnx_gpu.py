@@ -25,6 +25,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+#测试导出的onnx解码器编码器
+
 """
 This script is for testing exported onnx encoder and decoder from
 export_onnx_gpu.py. The exported onnx models only support batch offline ASR inference.
@@ -295,3 +298,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# 总结：用于在GPU上运行ONNX模型进行语音识别的脚本。具体来说，它支持基于ONNX格式的模型在GPU上进行推理，适用于批量离线语音识别任务。
