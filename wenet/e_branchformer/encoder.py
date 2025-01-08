@@ -31,8 +31,10 @@ from wenet.utils.class_utils import (
 
 
 class EBranchformerEncoder(ConformerEncoder):
+    # 实现E-Branchformer模型
     """E-Branchformer encoder module."""
 
+    # 初始化
     def __init__(
         self,
         input_size: int,
@@ -126,7 +128,7 @@ class EBranchformerEncoder(ConformerEncoder):
                             dropout_rate, use_linear_after_conv,
                             gate_activation, causal)
 
-        # feed-forward module definition
+        # feed-forward module definition,前馈模块定义
         mlp_class = WENET_MLP_CLASSES[mlp_type]
         activation = WENET_ACTIVATION_CLASSES[activation_type]()
         positionwise_layer_args = (
@@ -146,6 +148,7 @@ class EBranchformerEncoder(ConformerEncoder):
                 f"Length of stochastic_depth_rate ({len(stochastic_depth_rate)}) "
                 f"should be equal to num_blocks ({num_blocks})")
 
+        # 初始化encoder_layer编码器层
         self.encoders = LayerDropModuleList(
             p=stochastic_depth_rate,
             modules=[
@@ -163,3 +166,5 @@ class EBranchformerEncoder(ConformerEncoder):
                     stochastic_depth_rate=stochastic_depth_rate[lnum],
                 ) for lnum in range(num_blocks)
             ])
+
+# 总结：实现E-Branchformer编码器，由encoder_layer堆叠产生，比transformer和conformer更灵活、可解释和可定制的编码器
