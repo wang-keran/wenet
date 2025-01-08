@@ -15,16 +15,19 @@
 import re
 
 
+# 使用 BPE 模型对给定文本进行分词。
 def tokenize_by_bpe_model(sp, txt):
     return _tokenize_by_seg_dic_or_bpe_model(txt, sp=sp, upper=True)
 
 
+# 使用分词字典对给定文本进行分词。
 def tokenize_by_seg_dict(seg_dict, txt):
     return _tokenize_by_seg_dic_or_bpe_model(txt,
                                              seg_dict=seg_dict,
                                              upper=False)
 
 
+# 根据 BPE 模型或分词字典对文本进行分词。
 def _tokenize_by_seg_dic_or_bpe_model(
     txt,
     sp=None,
@@ -63,3 +66,6 @@ def _tokenize_by_seg_dic_or_bpe_model(
                         tokens.append(en_token)
 
     return tokens
+
+# 总结：这段代码通过定义三个函数，实现了使用 BPE 模型和分词字典对文本的灵活分词。
+# 具体分词逻辑考虑了 CJK 字符与非 CJK 字符的处理，并根据用户提供的分词模型和字典进行分词，提供了很好的灵活性和扩展性。
