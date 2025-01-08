@@ -23,6 +23,8 @@ from wenet.transformer.attention import MultiHeadedAttention
 from typing import Tuple
 
 
+# 这个类实现了带有相对位置编码的多头注意力机制
+# RelPositionMultiHeadedAttention 继承自 MultiHeadedAttention，添加了相对位置编码的功能。
 class RelPositionMultiHeadedAttention(MultiHeadedAttention):
     """Multi-Head Attention layer with relative position encoding.
     Paper: https://arxiv.org/abs/1901.02860
@@ -32,6 +34,7 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
         dropout_rate (float): Dropout rate.
     """
 
+    # 初始化方法
     def __init__(self,
                  n_head,
                  n_feat,
@@ -58,6 +61,7 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
         if init_weights:
             self.init_weights()
 
+    # 初始化各个线性层的权重，使用均匀分布确保权重在合理范围内。
     def init_weights(self):
         input_max = (self.h * self.d_k)**-0.5
         torch.nn.init.uniform_(self.linear_q.weight, -input_max, input_max)
@@ -70,6 +74,7 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
         torch.nn.init.uniform_(self.linear_out.weight, -input_max, input_max)
         torch.nn.init.uniform_(self.linear_out.bias, -input_max, input_max)
 
+    # 计算相对位置编码。具体实现中，通过在输入张量的前面添加零以处理相对位置。
     def rel_shift(self, x, zero_triu: bool = False):
         """Compute relative positinal encoding.
         Args:
@@ -96,6 +101,7 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
 
         return x
 
+    # 根据给定的值和注意力分数计算上下文向量。
     def forward_attention(
         self,
         value: torch.Tensor,
@@ -143,6 +149,7 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
 
         return self.linear_out(x)  # (batch, time1, d_model)
 
+    # 计算带有相对位置编码的缩放点积注意力。
     def forward(
         self,
         query: torch.Tensor,
@@ -230,3 +237,6 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
             self.d_k)  # (batch, head, time1, time2)
 
         return self.forward_attention(v, scores, mask), new_cache
+
+# RelPositionMultiHeadedAttention 类实现了带有相对位置编码的多头注意力机制，利用线性变换、可学习的偏置以及适应性缩放等技术，以提高模型在序列处理任务中的表现。
+# 该实现对掩码和缓存的管理也考虑了动态图形和ONNX导出等实际应用中的需求。

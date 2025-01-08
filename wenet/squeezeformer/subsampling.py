@@ -24,6 +24,7 @@ from typing import Tuple
 from wenet.squeezeformer.conv2d import Conv2dValid
 
 
+# 该类实现了通过深度卷积进行 2D 子采样，将输入的特征长度缩减到原来的 1/4，通过减少特征的时间维度来降低计算复杂性
 class DepthwiseConv2dSubsampling4(BaseSubsampling):
     """Depthwise Convolutional 2D subsampling (to 1/4 length).
 
@@ -36,6 +37,7 @@ class DepthwiseConv2dSubsampling4(BaseSubsampling):
 
         """
 
+    # 初始化方法
     def __init__(self,
                  idim: int,
                  odim: int,
@@ -73,6 +75,7 @@ class DepthwiseConv2dSubsampling4(BaseSubsampling):
         # 6 = (3 - 1) * 1 + (3 - 1) * 2
         self.right_context = 6
 
+    # 前向传播方法
     def forward(
             self,
             x: torch.Tensor,
@@ -92,6 +95,8 @@ class DepthwiseConv2dSubsampling4(BaseSubsampling):
         return x, pos_emb, x_mask[:, :, :-2:2][:, :, :-2:2]
 
 
+# 主要用于对音频信号在时间维度上进行降采样。该类是基于 NeMo 框架的 Squeezeformer 模型中提取的时间降采样层的实现。
+# 实现了通过深度卷积和逐点卷积对输入音频信号进行时间降采样的过程。降采样可以减少输入数据的时间长度，从而提高后续处理的效率。
 class TimeReductionLayer1D(nn.Module):
     """
     Modified NeMo,
@@ -106,6 +111,7 @@ class TimeReductionLayer1D(nn.Module):
         stride (int): Downsampling factor in time dimension.
     """
 
+    # 初始化方法
     def __init__(self,
                  channel: int,
                  out_dim: int,
@@ -139,6 +145,7 @@ class TimeReductionLayer1D(nn.Module):
 
         self.init_weights()
 
+    # 权重初始化方法：该方法使用均匀分布对深度卷积和逐点卷积的权重和偏置进行初始化，确保初始化时权重不会过大或过小，以便模型能够有效学习。
     def init_weights(self):
         dw_max = self.kernel_size**-0.5
         pw_max = self.channel**-0.5
@@ -147,6 +154,7 @@ class TimeReductionLayer1D(nn.Module):
         torch.nn.init.uniform_(self.pw_conv.weight, -pw_max, pw_max)
         torch.nn.init.uniform_(self.pw_conv.bias, -pw_max, pw_max)
 
+    # 前向传播方法
     def forward(
             self,
             xs,
@@ -177,8 +185,10 @@ class TimeReductionLayer1D(nn.Module):
         return xs, xs_lens, mask, mask_pad
 
 
+# 该类主要通过深度卷积（Depthwise Convolution）和逐点卷积（Pointwise Convolution）来实现 2D 时间降采样，适用于处理时频特征图
 class TimeReductionLayer2D(nn.Module):
 
+    # 初始化方法
     def __init__(self,
                  kernel_size: int = 5,
                  stride: int = 2,
@@ -204,6 +214,7 @@ class TimeReductionLayer2D(nn.Module):
         self.stride = stride
         self.init_weights()
 
+    # 权重初始化方法
     def init_weights(self):
         dw_max = self.kernel_size**-0.5
         pw_max = self.encoder_dim**-0.5
@@ -212,6 +223,7 @@ class TimeReductionLayer2D(nn.Module):
         torch.nn.init.uniform_(self.pw_conv.weight, -pw_max, pw_max)
         torch.nn.init.uniform_(self.pw_conv.bias, -pw_max, pw_max)
 
+    # 前向传播方法
     def forward(
         self,
         xs: torch.Tensor,
@@ -238,6 +250,8 @@ class TimeReductionLayer2D(nn.Module):
         return xs, xs_lens, mask, mask_pad
 
 
+# 该类实现了 Squeezeformer 的时间降采样功能，主要用于处理音频信号。
+# 通过使用深度卷积（Depthwise Convolution）和逐点卷积（Pointwise Convolution），在时间维度上降低输入的长度。
 class TimeReductionLayerStream(nn.Module):
     """
     Squeezeformer Time Reduction procedure.
@@ -251,6 +265,7 @@ class TimeReductionLayerStream(nn.Module):
         stride (int): Downsampling factor in time dimension.
     """
 
+    # 初始化方法
     def __init__(self,
                  channel: int,
                  out_dim: int,
@@ -283,6 +298,7 @@ class TimeReductionLayerStream(nn.Module):
 
         self.init_weights()
 
+    # 权重初始化方法
     def init_weights(self):
         dw_max = self.kernel_size**-0.5
         pw_max = self.channel**-0.5
@@ -291,6 +307,7 @@ class TimeReductionLayerStream(nn.Module):
         torch.nn.init.uniform_(self.pw_conv.weight, -pw_max, pw_max)
         torch.nn.init.uniform_(self.pw_conv.bias, -pw_max, pw_max)
 
+    # 前向传播方法
     def forward(
             self,
             xs,
@@ -319,3 +336,5 @@ class TimeReductionLayerStream(nn.Module):
 
         xs_lens = torch.div(xs_lens + 1, 2, rounding_mode='trunc')
         return xs, xs_lens, mask, mask_pad
+
+# 总结：实现了基于squeezeformer的下采样机制。

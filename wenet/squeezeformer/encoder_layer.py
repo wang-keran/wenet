@@ -18,6 +18,8 @@ import torch.nn as nn
 from typing import Optional, Tuple
 
 
+# 实现了 Squeezeformer 模型中的编码器层（Encoder Layer）。
+# 它的结构包括自注意力机制、前馈网络和卷积模块，能够对输入数据进行多层次的处理。
 class SqueezeformerEncoderLayer(nn.Module):
     """Encoder layer module.
         Args:
@@ -37,6 +39,7 @@ class SqueezeformerEncoderLayer(nn.Module):
                 False: use layer_norm after each sub-block.
         """
 
+    # 构造函数
     def __init__(
         self,
         size: int,
@@ -66,6 +69,7 @@ class SqueezeformerEncoderLayer(nn.Module):
         else:
             self.concat_linear = nn.Identity()
 
+    # 前向传播
     def forward(
         self,
         x: torch.Tensor,
@@ -75,7 +79,7 @@ class SqueezeformerEncoderLayer(nn.Module):
         att_cache: torch.Tensor = torch.zeros((0, 0, 0, 0)),
         cnn_cache: torch.Tensor = torch.zeros((0, 0, 0, 0)),
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        # self attention module
+        # self attention module自注意力模块
         residual = x
         if self.normalize_before:
             x = self.layer_norm1(x)
@@ -89,7 +93,7 @@ class SqueezeformerEncoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.layer_norm1(x)
 
-        # ffn module
+        # ffn module前馈网络模块 1
         residual = x
         if self.normalize_before:
             x = self.layer_norm2(x)
@@ -98,7 +102,7 @@ class SqueezeformerEncoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.layer_norm2(x)
 
-        # conv module
+        # conv module卷积模块
         new_cnn_cache = torch.zeros((0, 0, 0), dtype=x.dtype, device=x.device)
         residual = x
         if self.normalize_before:
@@ -108,7 +112,7 @@ class SqueezeformerEncoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.layer_norm3(x)
 
-        # ffn module
+        # ffn module前馈网络模块 2
         residual = x
         if self.normalize_before:
             x = self.layer_norm4(x)

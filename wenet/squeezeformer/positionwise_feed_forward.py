@@ -18,6 +18,7 @@
 import torch
 
 
+# 它是一个位置逐层前馈神经网络（FeedForward Neural Network），通常用于序列处理任务，如自然语言处理和语音识别。
 class PositionwiseFeedForward(torch.nn.Module):
     """Positionwise feed forward layer.
 
@@ -31,6 +32,7 @@ class PositionwiseFeedForward(torch.nn.Module):
         activation (torch.nn.Module): Activation function
     """
 
+    # 初始化方法 
     def __init__(self,
                  idim: int,
                  hidden_units: int,
@@ -56,6 +58,8 @@ class PositionwiseFeedForward(torch.nn.Module):
         if init_weights:
             self.init_weights()
 
+    # 权重初始化方法，初始化两个全连接层的权重和偏置
+    # 使用均匀分布在负 ffn1_max 和正 ffn1_max 之间初始化 w_1 和 w_2 的权重和偏置，ffn1_max 和 ffn2_max 是根据输入和隐藏维度的平方根的倒数计算得出的。
     def init_weights(self):
         ffn1_max = self.idim**-0.5
         ffn2_max = self.hidden_units**-0.5
@@ -64,6 +68,7 @@ class PositionwiseFeedForward(torch.nn.Module):
         torch.nn.init.uniform_(self.w_2.weight.data, -ffn2_max, ffn2_max)
         torch.nn.init.uniform_(self.w_2.bias.data, -ffn2_max, ffn2_max)
 
+    # 前向传播方法
     def forward(self, xs: torch.Tensor) -> torch.Tensor:
         """Forward function.
 
@@ -72,6 +77,10 @@ class PositionwiseFeedForward(torch.nn.Module):
         Returns:
             output tensor, (B, L, D)
         """
+        # 自适应缩放
         if self.adaptive_scale:
+            # 前向计算
             xs = self.ada_scale * xs + self.ada_bias
         return self.w_2(self.dropout(self.activation(self.w_1(xs))))
+
+# 总结：定义了一个 PositionwiseFeedForward 类，它是一个位置逐层前馈神经网络（FeedForward Neural Network），通常用于序列处理任务，

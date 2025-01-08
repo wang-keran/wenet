@@ -17,11 +17,14 @@ import torch.nn.functional as F
 from torch.nn.modules.conv import _ConvNd, _size_2_t, Union, _pair, Tensor, Optional
 
 
+# 该类实现了一个用于“VALID”模式填充的二维卷积操作，主要特点是处理输入时不添加填充。
+# Conv2dValid 继承自 _ConvNd，实现了一个二维卷积操作，专注于“VALID”模式的填充（即不使用填充）。
 class Conv2dValid(_ConvNd):
     """
     Conv2d operator for VALID mode padding.
     """
 
+    # 初始化方法
     def __init__(
             self,
             in_channels: int,
@@ -50,6 +53,7 @@ class Conv2dValid(_ConvNd):
         self.valid_trigx = valid_trigx
         self.valid_trigy = valid_trigy
 
+    # 前向卷积方法，进行卷积操作。
     def _conv_forward(self, input: Tensor, weight: Tensor,
                       bias: Optional[Tensor]):
         validx, validy = 0, 0
@@ -62,5 +66,8 @@ class Conv2dValid(_ConvNd):
         return F.conv2d(input, weight, bias, self.stride, (validx, validy),
                         self.dilation, self.groups)
 
+    # 前向传播方法：前向传播方法，调用 _conv_forward 方法进行卷积计算。返回卷积的结果。
     def forward(self, input: Tensor) -> Tensor:
         return self._conv_forward(input, self.weight, self.bias)
+
+# 总结：Conv2dValid 类提供了一种实现“VALID”填充模式的卷积操作，它通过计算有效偏移来处理输入，避免了在边缘添加填充的情况。

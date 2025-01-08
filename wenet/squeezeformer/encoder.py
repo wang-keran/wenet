@@ -32,8 +32,11 @@ from wenet.utils.mask import make_pad_mask, add_optional_chunk_mask
 from wenet.utils.class_utils import WENET_ACTIVATION_CLASSES
 
 
+# 实现了一个名为 SqueezeformerEncoder 的深度学习模型，属于一种变换器（Transformer）架构，
+# 结合了卷积神经网络（CNN）来处理序列数据，特别适用于音频处理或语言模型。
 class SqueezeformerEncoder(nn.Module):
 
+    # 类的初始化
     def __init__(self,
                  input_size: int = 80,
                  encoder_dim: int = 256,
@@ -181,9 +184,11 @@ class SqueezeformerEncoder(nn.Module):
         if output_size != encoder_dim:
             self.final_proj = nn.Linear(encoder_dim, output_size)
 
+    # 输出尺寸
     def output_size(self) -> int:
         return self._output_size
 
+    # 前向传播
     def forward(
         self,
         xs: torch.Tensor,
@@ -240,6 +245,7 @@ class SqueezeformerEncoder(nn.Module):
             xs = self.final_proj(xs)
         return xs, masks
 
+    # 这个方法的主要功能是检查两个列表（reduce_idx 和 recover_idx）是否为升序排列。
     def check_ascending_list(self):
         if self.reduce_idx is not None:
             assert self.reduce_idx == sorted(self.reduce_idx), \
@@ -248,6 +254,7 @@ class SqueezeformerEncoder(nn.Module):
             assert self.recover_idx == sorted(self.recover_idx), \
                 "recover_idx should be int or ascending list"
 
+    # 此方法用于计算下采样因子，依据给定的索引 i 以及 reduce_idx 和 recover_idx 列表的状态。
     def calculate_downsampling_factor(self, i: int) -> int:
         if self.reduce_idx is None:
             return 1
@@ -262,6 +269,8 @@ class SqueezeformerEncoder(nn.Module):
                         recover_exp = exp + 1
             return int(2**(reduce_exp - recover_exp))
 
+    # 这段代码定义了一个 forward_chunk 方法，用于处理输入的一个数据块（chunk）并返回输出。
+    # 这是一个在深度学习模型（如变换器或卷积变换器）中常见的前向传播函数，特别是在处理序列数据时。
     def forward_chunk(
         self,
         xs: torch.Tensor,
@@ -403,6 +412,7 @@ class SqueezeformerEncoder(nn.Module):
             xs = self.final_proj(xs)
         return (xs, r_att_cache, r_cnn_cache)
 
+    # 用于以流式方式逐块处理输入数据。
     def forward_chunk_by_chunk(
         self,
         xs: torch.Tensor,
@@ -464,3 +474,5 @@ class SqueezeformerEncoder(nn.Module):
                            device=ys.device,
                            dtype=torch.bool)
         return ys, masks
+
+# 总结：SqueezeformerEncoder 是一个复杂且灵活的变换器（Transformer）模型，利用卷积和自注意力机制对序列数据进行高效处理。
