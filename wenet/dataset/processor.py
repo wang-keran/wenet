@@ -31,10 +31,14 @@ from wenet.text.base_tokenizer import BaseTokenizer
 
 torchaudio.utils.sox_utils.set_buffer_size(16500)
 
+#设置音频种类
 AUDIO_FORMAT_SETS = set(['flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'wma'])
 
+# 创建一个语言标识器对象 lid，该对象使用 model 模型进行语言识别，并且启用了归一化概率（norm_probs=True）。
+# 这意味着在识别语言时，返回的概率值会被归一化处理，使得所有语言的概率总和为1。
 lid = LanguageIdentifier.from_modelstring(model, norm_probs=True)
 
+# 设置名为 'langid' 的日志记录器（Logger）的日志级别为 INFO，低于INFO的日志不读取
 logging.getLogger('langid').setLevel(logging.INFO)
 
 import os
@@ -53,6 +57,7 @@ except Exception as ex:
         ignore this warning if you are not using Kunpeng')
 
 
+# 定义异常类，返回错误信息
 class UrlOpenError(Exception):
 
     def __init__(self, msg: str, *args: object) -> None:
@@ -63,6 +68,7 @@ class UrlOpenError(Exception):
         return self.err_msg
 
 
+# 确保了JSON字符串被正确解析为Python字典，并且额外的信息（如文件名）被添加到字典中。
 def parse_json(elem):
     line = elem['line']
     obj = json.loads(line)
@@ -70,6 +76,7 @@ def parse_json(elem):
     return dict(obj)
 
 
+# 解析一个 URL 并返回一个包含文件流的字典。
 def parse_url(elem):
     assert 'file_name' in elem
     assert 'line' in elem
@@ -93,6 +100,7 @@ def parse_url(elem):
         raise UrlOpenError(err_msg) from ex
 
 
+# 解析一个包含 speaker（说话人） 键的字典，并将其值替换为 speaker_dict 中对应的值。如果 speaker 键在 speaker_dict 中不存在，则将其值设置为 0。
 def parse_speaker(sample, speaker_dict):
     assert 'speaker' in sample
     speaker = sample['speaker']
@@ -100,6 +108,7 @@ def parse_speaker(sample, speaker_dict):
     return sample
 
 
+# 识别语言，将检测结果添加到样本字典中。
 def detect_language(sample, limited_langs):
     assert 'txt' in sample
     # NOTE(xcsong): Because language classification may not be very accurate
@@ -113,6 +122,7 @@ def detect_language(sample, limited_langs):
     return sample
 
 
+# 将传入样本 sample 的任务硬编码为 'transcribe'
 def detect_task(sample):
     # TODO(xcsong): Currently, the task is hard-coded to 'transcribe'.
     #   In the future, we could dynamically determine the task based on
@@ -122,6 +132,7 @@ def detect_task(sample):
     return sample
 
 
+# 从 JSON 格式的行字符串中解析出键（key）、音频文件（wav）和文本（txt），然后加载音频文件，并根据需要裁剪音频
 def decode_wav(sample):
     """ Parse key/wav/txt from json line
 
@@ -155,7 +166,7 @@ def decode_wav(sample):
     sample['sample_rate'] = sample_rate
     return sample
 
-
+# 选择音频样本中的特定通道。通过检查样本中的音频数据，获取通道数量，并选择目标通道，函数对输入的音频样本进行原地操作，并返回处理后的样本。
 def singal_channel(sample, channel=0):
     """ Choose a channel of sample.
         Inplace operation.
@@ -177,6 +188,7 @@ def singal_channel(sample, channel=0):
     return sample
 
 
+# 重采样给定的音频样本
 def resample(sample, resample_rate=16000):
     """ Resample sample.
         Inplace operation.
@@ -199,6 +211,10 @@ def resample(sample, resample_rate=16000):
     return sample
 
 
+# 在给定的代码中，speed_perturb 函数用于对音频数据进行速度扰动。
+# 该函数通过调整音频信号的播放速度来增加数据的多样性，从而提高语音识别模型的鲁棒性。
+# 具体来说，函数会随机选择一个速度因子（如0.9、1.0或1.1），并使用 torchaudio.sox_effects.apply_effects_tensor 方法来调整音频信号的速度。
+# 如果选择的速度因子不是1.0，则会重新采样音频信号以匹配原始采样率。
 def speed_perturb(sample, speeds=None):
     """ Apply speed perturb to the sample.
         Inplace operation.
@@ -226,6 +242,11 @@ def speed_perturb(sample, speeds=None):
     return sample
 
 
+# 计算fbank,首先遍历 data 中的每个样本,对于每个样本，函数会检查是否包含 'sample_rate'、'wav'、'key' 和 'label' 这四个键。
+# 然后，函数将音频波形数据 waveform 乘以 (1 << 15)，这是将音频数据从 int16 格式转换为 float32 格式的标准做法。
+# 接着，函数使用 kaldi.fbank 函数提取 FBank 特征，并将结果存储在 mat 中。
+# 最后，函数将提取的特征 mat 添加到样本字典中，并通过 yield 返回更新后的样本。
+# fbank:梅尔频率倒谱系数（FBank）。
 def compute_fbank(sample,
                   num_mel_bins=23,
                   frame_length=25,
@@ -259,6 +280,7 @@ def compute_fbank(sample,
     return sample
 
 
+# 提取预训练的 w2vbert 模型所需的特征（fbank），并对这些特征进行标准化处理。
 def compute_w2vbert_fbank(sample,
                           num_mel_bins=23,
                           frame_length=25,
@@ -266,8 +288,10 @@ def compute_w2vbert_fbank(sample,
                           dither=0.0):
     """ Extract Pretrain w2vbert(4.5M hours) fbank
     """
+    # 首先，函数调用 compute_fbank 函数来计算输入样本的 fbank 特征。
     sample = compute_fbank(sample, num_mel_bins, frame_length, frame_shift,
                            dither)
+    # 对生成的 fbank 特征矩阵进行标准化处理
     mat = sample['feat']
     std, mean = torch.std_mean(mat, dim=0)
     mat = mat.subtract(mean).divide(std)
@@ -275,17 +299,20 @@ def compute_w2vbert_fbank(sample,
     return sample
 
 
+# 检查输入的 sample 是否包含 'feat' 键
 def sort_by_feats(sample):
     assert 'feat' in sample
     assert isinstance(sample['feat'], torch.Tensor)
     return sample['feat'].size(0)
 
 
+# 返回这些特征的长度
 def feats_length_fn(sample) -> int:
     assert 'feat' in sample
     return sample['feat'].size(0)
 
 
+# 计算从音频数据中提取梅尔频率倒谱系数（MFCC）
 def compute_mfcc(sample,
                  num_mel_bins=23,
                  frame_length=25,
@@ -320,6 +347,7 @@ def compute_mfcc(sample,
     return sample
 
 
+# 从音频数据中计算对数梅尔频谱图（Log Mel Spectrogram）。
 def compute_log_mel_spectrogram(sample,
                                 n_fft=400,
                                 hop_length=160,
@@ -372,6 +400,7 @@ def compute_log_mel_spectrogram(sample,
     return sample
 
 
+# 文本数据进行分词处理，并将分词结果和标签添加到原始数据中
 def tokenize(sample, tokenizer: BaseTokenizer):
     """ Decode text to chars or BPE
         Inplace operation
@@ -389,6 +418,8 @@ def tokenize(sample, tokenizer: BaseTokenizer):
     return sample
 
 
+# 它会检查样本的音频帧数是否在指定的最小和最大长度之间，并且如果存在标签，则还会检查标签的长度是否在指定的最小和最大长度之间，
+# 以及标签与特征的比率是否在指定的最小和最大比率之间。如果所有条件都满足，则返回 True，否则返回 False。
 def filter(sample,
            max_length=10240,
            min_length=10,
@@ -438,6 +469,7 @@ def filter(sample,
     return True
 
 
+# 实现了SpecAugment技术，用于对音频数据进行增强。
 def spec_aug(sample, num_t_mask=2, num_f_mask=2, max_t=50, max_f=10, max_w=80):
     """ Do spec augmentation
         Inplace operation
@@ -475,6 +507,7 @@ def spec_aug(sample, num_t_mask=2, num_f_mask=2, max_t=50, max_f=10, max_w=80):
     return sample
 
 
+# 对数据进行特殊替换操作。具体来说，它会对每个样本的特征（feat）进行随机的时间替换
 def spec_sub(sample, max_t=20, num_t_sub=3):
     """ Do spec substitute
         Inplace operation
@@ -504,6 +537,7 @@ def spec_sub(sample, max_t=20, num_t_sub=3):
     return sample
 
 
+# 用于对数据进行尾部帧的修剪操作。具体来说，它会随机选择一个长度（从1到 max_t），然后从数据的尾部截取相应长度的帧，并将剩余部分保留。截取的单位是帧
 def spec_trim(sample, max_t=20):
     """ Trim tailing frames. Inplace operation.
         ref: TrimTail [https://arxiv.org/abs/2211.00522]
@@ -526,6 +560,7 @@ def spec_trim(sample, max_t=20):
     return sample
 
 
+# 将不同长度的序列数据填充成固定长度的批次数据，以便于训练模型。
 def padding(data):
     """ Padding the data into training data
 
@@ -580,6 +615,9 @@ def padding(data):
     return batch
 
 
+# 动态调整批处理窗口的大小，以适应不同的数据样本
+# 体来说，它通过维护一个最长帧数的记录，并根据这个记录来决定是否需要调整批处理窗口的大小。
+# 如果当前样本的帧数超过了预设的最大帧数限制，那么批处理窗口的大小就会被调整。
 class DynamicBatchWindow:
 
     def __init__(self, max_frames_in_batch=12000):
@@ -590,10 +628,16 @@ class DynamicBatchWindow:
         assert isinstance(sample, dict)
         assert 'feat' in sample
         assert isinstance(sample['feat'], torch.Tensor)
+        # 它计算当前样本的帧数，并更新 longest_frames 为当前最长帧数和新样本帧数的最大值。
         new_sample_frames = sample['feat'].size(0)
         self.longest_frames = max(self.longest_frames, new_sample_frames)
+        # 接着，它计算在填充后的帧数，并检查是否超过了最大帧数限制。
         frames_after_padding = self.longest_frames * (buffer_size + 1)
+        # 如果超过了，则重置 longest_frames 为当前样本的帧数，并返回 True，表示需要调整批处理窗口的大小。
         if frames_after_padding > self.max_frames_in_batch:
             self.longest_frames = new_sample_frames
             return True
+        # 否则，返回 False，表示不需要调整。
         return False
+
+# 总结：音频的处理，计算帧数，分块等数据。处理数据集。具体来说，它负责将原始音频数据转换为适合模型训练的格式，并进行必要的预处理操作。
