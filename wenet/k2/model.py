@@ -24,8 +24,10 @@ from wenet.transformer.encoder import TransformerEncoder
 from wenet.utils.common import (IGNORE_ID, add_sos_eos, reverse_pad_list)
 
 
+# K2Model 是一个基于自注意力机制的语音识别模型（ASR Model），用于将语音信号转换为文本
 class K2Model(ASRModel):
 
+    # 初始化
     def __init__(
             self,
             vocab_size: int,
@@ -56,6 +58,7 @@ class K2Model(ASRModel):
         if self.lfmmi_dir != '':
             self.load_lfmmi_resource()
 
+    # CTC 前向传播 _forward_ctc:计算 LFMMI 损失和 CTC 概率，并返回。
     @torch.jit.unused
     def _forward_ctc(
             self, encoder_out: torch.Tensor, encoder_mask: torch.Tensor,
@@ -65,6 +68,9 @@ class K2Model(ASRModel):
                                                     text)
         return loss_ctc, ctc_probs
 
+    # 加载 LFMMI 资源 load_lfmmi_resource:
+    # 尝试导入 icefall 库并从指定目录加载 LFMMI 资源。
+    # 读取 tokens.txt 获取开始/结束标记 ID，并初始化图编译器和 LFMMI 损失计算器。
     @torch.jit.unused
     def load_lfmmi_resource(self):
         try:
@@ -96,6 +102,7 @@ class K2Model(ASRModel):
                 assert len(arr) == 2
                 self.word_table[int(arr[1])] = arr[0]
 
+    # 计算 LFMMI 损失 ：计算 CTC 概率，并构造密集的 FSA（有限状态自动机）以计算 LFMMI 损失。
     @torch.jit.unused
     def _calc_lfmmi_loss(self, encoder_out, encoder_mask, text):
         try:
@@ -120,6 +127,7 @@ class K2Model(ASRModel):
         loss = self.lfmmi(dense_fsa_vec=dense_fsa_vec, texts=text) / len(text)
         return loss, ctc_probs
 
+    # 加载 HLG 资源 （如果需要的话）：检查并加载 HLG 资源，确保需要的字段存在。
     def load_hlg_resource_if_necessary(self, hlg, word):
         try:
             import k2
@@ -138,6 +146,7 @@ class K2Model(ASRModel):
                     assert len(arr) == 2
                     self.word_table[int(arr[1])] = arr[0]
 
+    # HLG 一次最佳解码 hlg_onebest:将语音信号通过编码器进行处理，计算 CTC 概率，生成解码图并进行解码，最终返回最佳路径的文本。
     @torch.no_grad()
     def hlg_onebest(
         self,
@@ -182,6 +191,7 @@ class K2Model(ASRModel):
                 for i in hyps]
         return hyps
 
+    # HLG 重评分 hlg_rescore:重评分以结合语言模型（LM）和其他评分信息，计算总得分并返回文本。
     @torch.no_grad()
     def hlg_rescore(
         self,
@@ -302,3 +312,8 @@ class K2Model(ASRModel):
         hyps = [[symbol_table[k] for j in i for k in self.word_table[j]]
                 for i in hyps]
         return hyps
+
+# 总结：K2Model 整合了先进的解码和损失计算方法，利用自注意力机制和图形计算，提高了语音识别的准确性。
+# 它使用 CTC、LFMMI 和 HLG 等技术，以适应复杂的语音到文本转换任务。
+# 通过对不同资源的动态加载和权重调节，该模型能够灵活应对不同的任务需求。
+# 自己完成了语音识别任务
