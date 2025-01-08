@@ -32,9 +32,12 @@ from wenet.utils.common import (IGNORE_ID, add_sos_eos, th_accuracy,
 from wenet.utils.context_graph import ContextGraph
 
 
+# 这是一个混合的CTC-注意力机制的语音识别模型类 ASRModel，基于PyTorch。
+# 它使用了基于CTC (Connectionist Temporal Classification) 和注意力机制的解码器（Attention Decoder），适用于语音识别任务。
 class ASRModel(torch.nn.Module):
     """CTC-attention hybrid Encoder-Decoder model"""
 
+    #  类的结构与初始化
     def __init__(
         self,
         vocab_size: int,
@@ -74,6 +77,7 @@ class ASRModel(torch.nn.Module):
             normalize_length=length_normalized_loss,
         )
 
+    # 前向传播函数执行整个ASR模型的核心计算
     @torch.jit.unused
     def forward(
         self,
@@ -126,6 +130,10 @@ class ASRModel(torch.nn.Module):
         else:
             loss = self.ctc_weight * loss_ctc + (1 -
                                                  self.ctc_weight) * loss_att
+            
+        print("非流式编码结果1：")
+        print(loss)
+
         return {
             "loss": loss,
             "loss_att": loss_att,
@@ -133,9 +141,12 @@ class ASRModel(torch.nn.Module):
             "th_accuracy": acc_att,
         }
 
+    # 这段代码定义了一个名为 tie_or_clone_weights 的方法，用于在当前对象的解码器中调用同名方法。
+    # 通过传递 jit_mode 参数，可以控制解码器中的权重共享或复制行为
     def tie_or_clone_weights(self, jit_mode: bool = True):
         self.decoder.tie_or_clone_weights(jit_mode)
 
+    # 计算CTC损失
     @torch.jit.unused
     def _forward_ctc(
             self, encoder_out: torch.Tensor, encoder_mask: torch.Tensor,
@@ -146,34 +157,55 @@ class ASRModel(torch.nn.Module):
                                        text_lengths)
         return loss_ctc, ctc_probs
 
+    # 获得CTC的概率分布。
+    #   ctc_probs 是一个张量，表示 CTC 的概率输出，
+    #   encoder_out 是编码器的输出。
     def filter_blank_embedding(
             self, ctc_probs: torch.Tensor,
             encoder_out: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        # 确定输入批次大小
         batch_size = encoder_out.size(0)
+        # 获取最大长度 maxlen
+        # encoder_out 的形状为 (batch_size, maxlen, feature_dim)，表示每个样本在时间维度上的特征。
         maxlen = encoder_out.size(1)
+        # 计算 CTC 概率中的最大值索引 top1_index，选择每个时间步的最高概率的类别（即标记）。
+        # top1_index 的形状为 (batch_size, maxlen)。
         top1_index = torch.argmax(ctc_probs, dim=2)
+        # 初始化一个空列表 indices，用于存储每个样本中非空白标记的索引。
         indices = []
+        # 对于每个样本 j，使用列表推导式生成一个包含非空白标记（即不等于0的标记）的索引列表，并将其转换为张量，添加到 indices 列表中。
         for j in range(batch_size):
             indices.append(
                 torch.tensor(
                     [i for i in range(maxlen) if top1_index[j][i] != 0]))
 
+        # 使用 torch.index_select 根据之前计算的 indices 从 encoder_out 中选择非空白标记对应的特征。
         select_encoder_out = [
             torch.index_select(encoder_out[i, :, :], 0,
                                indices[i].to(encoder_out.device))
+            # 这里对每个样本 i 进行索引选择，提取对应的编码器输出特征，生成新的张量列表 select_encoder_out。
             for i in range(batch_size)
         ]
+        # 使用 pad_sequence 函数将 select_encoder_out 中的张量填充成相同长度。
+        # batch_first=True 表示将批次维度放在第一维，padding_value=0 指定填充值为0。
         select_encoder_out = pad_sequence(select_encoder_out,
                                           batch_first=True,
                                           padding_value=0).to(
+                                              # 将填充后的结果移动到与 encoder_out 相同的设备上（CPU或GPU）。
                                               encoder_out.device)
+        # 计算每个样本中非空白标记的数量，并将结果转换为张量 xs_lens，表示每个样本的实际长度，同样移动到与 encoder_out 相同的设备上。
         xs_lens = torch.tensor([len(indices[i]) for i in range(batch_size)
                                 ]).to(encoder_out.device)
+        # 获取填充后编码器输出的时间步长 T，即样本中的最大时间步长度。
         T = select_encoder_out.size(1)
+        # 调用 make_pad_mask 函数，根据每个样本的长度 xs_lens 创建一个填充掩码。
+        # 通过取反（~）来标记有效时间步，unsqueeze(1) 将其维度扩展为 (batch_size, 1, T)，以便与编码器输出进行广播操作。
         encoder_mask = ~make_pad_mask(xs_lens, T).unsqueeze(1)  # (B, 1, T)
+        # 将处理后的编码器输出赋值给 encoder_out。
         encoder_out = select_encoder_out
         return encoder_out, encoder_mask
 
+    # 计算注意力机制的损失，包括正向解码和（可选的）反向解码。
     def _calc_att_loss(
         self,
         encoder_out: torch.Tensor,
@@ -209,6 +241,8 @@ class ASRModel(torch.nn.Module):
         )
         return loss_att, acc_att
 
+    # 这个函数根据是否模拟流式处理来决定语音数据的编码方式。
+    # 流式处理的好处是可以边接收边处理，适用于实时语音识别等场景；非流式处理则适用于离线场景。
     def _forward_encoder(
         self,
         speech: torch.Tensor,
@@ -219,6 +253,11 @@ class ASRModel(torch.nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Let's assume B = batch_size
         # 1. Encoder
+        #print(simulate_streaming)           # 调试用
+        #print("切块数量为：")                   # 调试用
+        #print(decoding_chunk_size)          # 调试用
+        #print("剩余块数为：")
+        #print(num_decoding_left_chunks)
         if simulate_streaming and decoding_chunk_size > 0:
             encoder_out, encoder_mask = self.encoder.forward_chunk_by_chunk(
                 speech,
@@ -234,20 +273,28 @@ class ASRModel(torch.nn.Module):
             )  # (B, maxlen, encoder_dim)
         return encoder_out, encoder_mask
 
+    # 计算基于 CTC（连接时序分类，Connectionist Temporal Classification）模型的对数概率。
     @torch.jit.unused
     def ctc_logprobs(self,
                      encoder_out: torch.Tensor,
                      blank_penalty: float = 0.0,
                      blank_id: int = 0):
+        # 如果有空白惩罚
         if blank_penalty > 0.0:
+            # 通过 CTC 层将编码器输出转化为 logits，使用torch自带的方法。
+            # logits指的是模型输出的原始预测分数，这些分数通常是在应用激活函数（如 softmax 或 sigmoid）之前的结果。
             logits = self.ctc.ctc_lo(encoder_out)
+            # 将空白标签的 logits 减去惩罚值，以便在计算时降低空白标签的概率。
             logits[:, :, blank_id] -= blank_penalty
+            # 使用 log_softmax 方法计算对数概率,这个方法也是torch中的
             ctc_probs = logits.log_softmax(dim=2)
+        # 如果没有空白惩罚，直接对编码器输出进行计算：ctc_probs = self.ctc.log_softmax(encoder_out)。
         else:
             ctc_probs = self.ctc.log_softmax(encoder_out)
 
         return ctc_probs
 
+    # decode 函数为多种解码方法提供了统一的接口，允许根据需求选择不同的解码策略，包括CTC贪婪搜索、CTC前缀束搜索、注意力机制解码以及注意力重新评分
     def decode(
         self,
         methods: List[str],
@@ -292,11 +339,18 @@ class ASRModel(torch.nn.Module):
         """
         assert speech.shape[0] == speech_lengths.shape[0]
         assert decoding_chunk_size != 0
+        # _forward_encoder到encoder.py的forward到subsampling.py中Conv2dSubsampling4(BaseSubsampling)类的forward，到embeddinng.py中的RelPositionalEncoding(PositionalEncoding)类的forward
         encoder_out, encoder_mask = self._forward_encoder(
             speech, speech_lengths, decoding_chunk_size,
             num_decoding_left_chunks, simulate_streaming)
+        print("编码结果为2：")
+        print(encoder_out.size(1))
         encoder_lens = encoder_mask.squeeze(1).sum(1)
+        #print("编码后块数量为：")
+        #print(encoder_lens)
         ctc_probs = self.ctc_logprobs(encoder_out, blank_penalty, blank_id)
+        #print("对数概率为：")
+        #print(ctc_probs)
         results = {}
         if 'attention' in methods:
             results['attention'] = attention_beam_search(
@@ -326,6 +380,8 @@ class ASRModel(torch.nn.Module):
                 reverse_weight, infos)
         return results
 
+
+    # 这个方法的作用是提供模型中下采样率的接口，便于在 C++ 中调用，从而获取模型在处理序列输入时的下采样参数。
     @torch.jit.export
     def subsampling_rate(self) -> int:
         """ Export interface for c++ call, return subsampling_rate of the
@@ -333,24 +389,29 @@ class ASRModel(torch.nn.Module):
         """
         return self.encoder.embed.subsampling_rate
 
+    # 提供一个接口，便于从模型中获取右上下文的长度信息，使得 C++ 中可以调用这个方法来了解模型在处理输入时所参考的右侧上下文长度。
     @torch.jit.export
     def right_context(self) -> int:
         """ Export interface for c++ call, return right_context of the model
         """
         return self.encoder.embed.right_context
 
+    # 将模型的起始符号（SOS）的 ID 值导出为 C++ 接口，以便在 C++ 环境中调用并用于序列生成任务中的解码启动。
     @torch.jit.export
     def sos_symbol(self) -> int:
         """ Export interface for c++ call, return sos symbol id of the model
         """
         return self.sos
 
+    # 通过 @torch.jit.export 装饰器，将模型的结束符号（EOS）的 ID 值导出为 C++ 环境可调用的接口。
+    # 这个结束符号 ID 可以帮助模型在生成序列时，确定何时停止生成。
     @torch.jit.export
     def eos_symbol(self) -> int:
         """ Export interface for c++ call, return eos symbol id of the model
         """
         return self.eos
 
+    # 通过接收音频片段及其相关缓存，执行片段级别的前向推理，并返回当前片段的输出以及更新后的缓存。适合流式推理
     @torch.jit.export
     def forward_encoder_chunk(
         self,
@@ -394,6 +455,7 @@ class ASRModel(torch.nn.Module):
         return self.encoder.forward_chunk(xs, offset, required_cache_size,
                                           att_cache, cnn_cache)
 
+    # 该方法简化了 CTC 解码的前处理步骤，确保模型输出适合进行 CTC 解码，同时通过导出为 C++ 接口，提升模型在实际应用中的推理速度
     @torch.jit.export
     def ctc_activation(self, xs: torch.Tensor) -> torch.Tensor:
         """ Export interface for c++ call, apply linear transform and log
@@ -407,6 +469,7 @@ class ASRModel(torch.nn.Module):
         """
         return self.ctc.log_softmax(xs)
 
+    # 主要功能是检查解码器是否是双向解码器。
     @torch.jit.export
     def is_bidirectional_decoder(self) -> bool:
         """
@@ -418,6 +481,11 @@ class ASRModel(torch.nn.Module):
         else:
             return False
 
+    #hyps：从CTC前缀束搜索得到的假设序列，已经在开头填充了起始符号（sos）。
+    # hyps_lens：每个假设序列的长度。
+    # encoder_out：编码器的输出，表示输入音频的特征表示。
+    # reverse_weight：控制是否使用反向解码的权重，大于0时会使用反向解码。
+    # 该方法主要用于通过多个假设（来自 CTC 前缀束搜索）和一个编码器输出进行解码。
     @torch.jit.export
     def forward_attention_decoder(
         self,
@@ -444,7 +512,9 @@ class ASRModel(torch.nn.Module):
         assert encoder_out.size(0) == 1
         num_hyps = hyps.size(0)
         assert hyps_lens.size(0) == num_hyps
+        # 对输入的 encoder_out 进行重复，以适应假设的数量。
         encoder_out = encoder_out.repeat(num_hyps, 1, 1)
+        # 创建一个掩码（encoder_mask），用于指示哪些时间步是有效的。
         encoder_mask = torch.ones(num_hyps,
                                   1,
                                   encoder_out.size(1),
@@ -453,6 +523,7 @@ class ASRModel(torch.nn.Module):
 
         # input for right to left decoder
         # this hyps_lens has count <sos> token, we need minus it.
+        # 为反向解码准备数据：计算反向假设的长度和内容，并处理填充。
         r_hyps_lens = hyps_lens - 1
         # this hyps has included <sos> token, so it should be
         # convert the original hyps.
@@ -488,11 +559,13 @@ class ASRModel(torch.nn.Module):
         #   >>> tensor([[2, 1, 0],
         #   >>>         [2, 1, 0],
         #   >>>         [0, 0, 0]])
+        # 通过 torch.gather 提取有效的反向假设。
         r_hyps = torch.gather(r_hyps, 1, index)
         #   >>> r_hyps
         #   >>> tensor([[3, 2, 1],
         #   >>>         [4, 8, 9],
         #   >>>         [2, 2, 2]])
+        # 使用 torch.where 和 torch.cat 准备反向假设序列，以便在解码时使用。
         r_hyps = torch.where(seq_mask, r_hyps, self.eos)
         #   >>> r_hyps
         #   >>> tensor([[3, 2, 1],
@@ -504,9 +577,11 @@ class ASRModel(torch.nn.Module):
         #   >>>         [sos, 4, 8, 9],
         #   >>>         [sos, 2, eos, eos]])
 
+        # 调用内部的 decoder 函数执行前向和反向解码，得到解码输出。
         decoder_out, r_decoder_out, _ = self.decoder(
             encoder_out, encoder_mask, hyps, hyps_lens, r_hyps,
             reverse_weight)  # (num_hyps, max_hyps_len, vocab_size)
+        # 使用 log_softmax 将输出转换为对数概率，以便进行后续的评分和选择。
         decoder_out = torch.nn.functional.log_softmax(decoder_out, dim=-1)
 
         # right to left decoder may be not used during decoding process,
@@ -514,3 +589,5 @@ class ASRModel(torch.nn.Module):
         # r_dccoder_out will be 0.0, if reverse_weight is 0.0
         r_decoder_out = torch.nn.functional.log_softmax(r_decoder_out, dim=-1)
         return decoder_out, r_decoder_out
+
+# 总结：这个 ASRModel 类是一个高度灵活的语音识别模型，结合了CTC和注意力机制的优点，能够处理实时语音流的输入。
