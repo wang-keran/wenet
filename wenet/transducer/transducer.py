@@ -16,9 +16,12 @@ from wenet.utils.common import (IGNORE_ID, add_blank, add_sos_eos,
                                 reverse_pad_list, TORCH_NPU_AVAILABLE)
 
 
+# Transducer 类是一个结合了 CTC（Connectionist Temporal Classification）和注意力机制的混合模型，用于自动语音识别（ASR）。
+# 该类扩展了 ASRModel，并定义了多种方法来处理输入的音频信号、预测文本及计算损失。
 class Transducer(ASRModel):
     """Transducer-ctc-attention hybrid Encoder-Predictor-Decoder model"""
 
+    # 构造函数
     def __init__(
         self,
         vocab_size: int,
@@ -90,6 +93,7 @@ class Transducer(ASRModel):
                 normalize_length=length_normalized_loss,
             )
 
+    # 前向传播
     @torch.jit.unused
     def forward(
         self,
@@ -152,11 +156,13 @@ class Transducer(ASRModel):
             'th_accuracy': acc_att,
         }
 
+    # 初始化束搜索模块。
     def init_bs(self):
         if self.bs is None:
             self.bs = PrefixBeamSearch(self.encoder, self.predictor,
                                        self.joint, self.ctc, self.blank)
 
+    # 计算转导损失
     def _cal_transducer_score(
         self,
         encoder_out: torch.Tensor,
@@ -184,6 +190,7 @@ class Transducer(ASRModel):
                                                   reduction='none')
         return loss_td * -1
 
+    # 计算注意力得分，用于重评分。
     def _cal_attn_score(
         self,
         encoder_out: torch.Tensor,
@@ -212,6 +219,7 @@ class Transducer(ASRModel):
         r_decoder_out = r_decoder_out.cpu().numpy()
         return decoder_out, r_decoder_out
 
+    # 进行束搜索解码
     def beam_search(
         self,
         speech: torch.Tensor,
@@ -258,6 +266,7 @@ class Transducer(ASRModel):
         )
         return beam[0].hyp[1:], beam[0].score
 
+    # 主要用于在语音识别任务中进行基于注意力机制的重评分（rescoring）。
     def transducer_attention_rescoring(
             self,
             speech: torch.Tensor,
@@ -394,6 +403,7 @@ class Transducer(ASRModel):
 
         return hyps[best_index], best_score
 
+    # 贪心搜索
     def greedy_search(
         self,
         speech: torch.Tensor,
@@ -440,6 +450,7 @@ class Transducer(ASRModel):
 
         return hyps
 
+    # 它主要用于通过编码器处理输入张量。
     @torch.jit.export
     def forward_encoder_chunk(
         self,
@@ -453,6 +464,7 @@ class Transducer(ASRModel):
         return self.encoder.forward_chunk(xs, offset, required_cache_size,
                                           att_cache, cnn_cache)
 
+    # 调用 predictor 的 forward_step 方法进行单步预测，将输入张量 xs、填充 padding 和缓存状态 cache 一起传入，返回的是模型的输出和更新后的状态。
     @torch.jit.export
     def forward_predictor_step(
             self, xs: torch.Tensor, cache: List[torch.Tensor]
@@ -462,15 +474,19 @@ class Transducer(ASRModel):
         padding = torch.zeros(1, 1)
         return self.predictor.forward_step(xs, padding, cache)
 
+    # 将编码器的输出和预测器的输出传入联合网络进行处理，并返回一个新的张量。
+    # 这个操作通常是在 Transducer 模型中用于生成最终的概率分布，结合来自编码器和预测器的信息。
     @torch.jit.export
     def forward_joint_step(self, enc_out: torch.Tensor,
                            pred_out: torch.Tensor) -> torch.Tensor:
         return self.joint(enc_out, pred_out)
 
+    # 初始化预测器的状态，设定 batch 大小为 1，并将状态初始化在 CPU 上。该方法返回一个包含两个张量的列表，代表初始的隐藏状态和细胞状态。
     @torch.jit.export
     def forward_predictor_init_state(self) -> List[torch.Tensor]:
         return self.predictor.init_state(1, device=torch.device("cpu"))
 
+    # 计算损失
     def _compute_loss(self,
                       encoder_out: torch.Tensor,
                       encoder_out_lens: torch.Tensor,
@@ -569,3 +585,6 @@ class Transducer(ASRModel):
                     pruned_loss_scale * pruned_loss)
             loss = loss / encoder_out.size(0)
         return loss
+
+# 总结：这个 Transducer 类实现了一个复杂的自动语音识别模型，结合了多种前沿技术（如 CTC 和注意力机制），以提高语音识别的准确性。
+# 通过模块化的设计，该类能够灵活处理不同的输入特征，并有效地计算损失和进行解码。

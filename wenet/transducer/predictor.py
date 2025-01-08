@@ -5,6 +5,7 @@ from torch import nn
 from wenet.utils.class_utils import WENET_ACTIVATION_CLASSES, WENET_RNN_CLASSES
 
 
+# 将输入张量与填充值进行加权平均，使用 padding 张量作为权重。
 def ApplyPadding(input, padding, pad_value) -> torch.Tensor:
     """
     Args:
@@ -21,6 +22,7 @@ class PredictorBase(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
+    # 初始化隐藏状态，子类需要实现。
     def init_state(self,
                    batch_size: int,
                    device: torch.device,
@@ -28,19 +30,23 @@ class PredictorBase(torch.nn.Module):
         _, _, _ = batch_size, method, device
         raise NotImplementedError("this is a base precictor")
 
+    # 在缓存和批处理之间进行转换，子类需要实现。
     def batch_to_cache(self,
                        cache: List[torch.Tensor]) -> List[List[torch.Tensor]]:
         _ = cache
         raise NotImplementedError("this is a base precictor")
 
+    # 将缓存数据分批次
     def cache_to_batch(self,
                        cache: List[List[torch.Tensor]]) -> List[torch.Tensor]:
         _ = cache
         raise NotImplementedError("this is a base precictor")
 
+    # 返回输出大小
     def output_size(self):
         raise NotImplementedError("this is a base precictor")
 
+    # 定义前向传播接口，子类需要实现。
     def forward(
         self,
         input: torch.Tensor,
@@ -49,6 +55,7 @@ class PredictorBase(torch.nn.Module):
         _, _, = input, cache
         raise NotImplementedError("this is a base precictor")
 
+    # 定义逐步前向传播接口，子类需要实现。
     def forward_step(
             self, input: torch.Tensor, padding: torch.Tensor,
             cache: List[torch.Tensor]
@@ -57,6 +64,7 @@ class PredictorBase(torch.nn.Module):
         raise NotImplementedError("this is a base precictor")
 
 
+# 这是一个基于 RNN 的预测器
 class RNNPredictor(PredictorBase):
 
     def __init__(self,
@@ -206,6 +214,8 @@ class RNNPredictor(PredictorBase):
         return (out, [m, c])
 
 
+
+# 该类使用嵌入层进行预测
 class EmbeddingPredictor(PredictorBase):
     """Embedding predictor
 
@@ -376,6 +386,7 @@ class EmbeddingPredictor(PredictorBase):
         return (output, [new_cache])
 
 
+# 该类使用卷积层进行预测
 class ConvPredictor(PredictorBase):
 
     def __init__(self,
@@ -493,3 +504,7 @@ class ConvPredictor(PredictorBase):
         new_cache = context_input[:, 1:, :]
         # TODO(Mddct): apply padding in future
         return (out, [new_cache])
+
+#     该代码实现了三种不同的预测器：RNN、嵌入和卷积，分别适用于不同的场景。
+#    通过继承基类 PredictorBase，每个子类实现了特定的逻辑和数据处理方式，确保了代码的模块化和可重用性。
+#    其中的 ApplyPadding 函数为输入数据的处理提供了灵活性，适用于多种模型。

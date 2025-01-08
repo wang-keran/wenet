@@ -3,6 +3,7 @@ from typing import List
 import torch
 
 
+# 使用贪心搜索算法来从给定的模型中生成输出序列
 def basic_greedy_search(
     model: torch.nn.Module,
     encoder_out: torch.Tensor,

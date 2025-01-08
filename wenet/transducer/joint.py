@@ -5,6 +5,7 @@ from torch import nn
 from wenet.utils.class_utils import WENET_ACTIVATION_CLASSES
 
 
+# 用于连接编码器和预测器的输出。这个模块通常被用作转导器架构的一部分。
 class TransducerJoint(torch.nn.Module):
 
     def __init__(self,
@@ -59,6 +60,7 @@ class TransducerJoint(torch.nn.Module):
                 torch.nn.Dropout(dropout_rate),
                 torch.nn.Linear(join_dim, self.vocab_size - 1))
 
+    # 前向传播方法
     def forward(self,
                 enc_out: torch.Tensor,
                 pred_out: torch.Tensor,
@@ -104,3 +106,6 @@ class TransducerJoint(torch.nn.Module):
 
             out = torch.cat((blank_logp, label_logp), dim=-1)  # [B,T,U,vocab]
             return out
+
+# 总结：TransducerJoint 类实现了一个用于连接编码器和预测器的模块，主要通过加法操作将两者的输出结合，并根据设置的参数决定是否进行线性变换和激活。
+# 该模块支持 HAT 连接的实现，能够生成包括空白输出在内的最终输出概率分布。

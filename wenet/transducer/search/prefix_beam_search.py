@@ -4,6 +4,7 @@ import torch
 from wenet.utils.common import log_add
 
 
+# 用于在语音识别或类似任务中执行前缀束搜索（Prefix Beam Search）。
 class Sequence():
 
     __slots__ = {'hyp', 'score', 'cache'}
