@@ -22,6 +22,7 @@ from torch import nn
 
 
 class StrideConformerEncoderLayer(nn.Module):
+    # 编码器层模块
     """Encoder layer module.
     Args:
         size (int): Input dimension.
@@ -51,12 +52,16 @@ class StrideConformerEncoderLayer(nn.Module):
                  dropout_rate: float = 0.1,
                  normalize_before: bool = True):
         """Construct an EncoderLayer object."""
+        # 继承 nn.Module，可以方便地定义网络的前向传播结构，并且可以利用 PyTorch 的自动求导机制来实现反向传播。
         super().__init__()
+        # 子模块的定义，类中定义了多个子模块，包括自注意力机制（self_attn）、前馈神经网络（feed_forward 和 feed_forward_macaron）、卷积模块（conv_module）和点卷积层（pointwise_conv_layer）。
+        # 这些子模块的具体实现可以是 MultiHeadedAttention、PositionwiseFeedForward、ConvlutionModule 等。
         self.self_attn = self_attn
         self.feed_forward = feed_forward
         self.feed_forward_macaron = feed_forward_macaron
         self.conv_module = conv_module
         self.pointwise_conv_layer = pointwise_conv_layer
+        # 层归一化，对输入数据进行归一化处理，确保每一层的输入数据具有相似的分布，从而提高模型的稳定性和训练效率。
         self.norm_ff = nn.LayerNorm(size, eps=1e-5)  # for the FNN module
         self.norm_mha = nn.LayerNorm(size, eps=1e-5)  # for the MHA module
         if feed_forward_macaron is not None:
@@ -73,6 +78,7 @@ class StrideConformerEncoderLayer(nn.Module):
         self.normalize_before = normalize_before
         self.concat_linear = nn.Linear(size + size, size)
 
+    # 计算输入张量的编码特征
     def forward(
         self,
         x: torch.Tensor,
@@ -163,3 +169,5 @@ class StrideConformerEncoderLayer(nn.Module):
             x = self.norm_final(x)
 
         return x, mask, new_att_cache, new_cnn_cache
+
+# 总结：主要作用是实现 Efficient Conformer 模型中的编码器层，具体用于语音识别任务。（实现单层，encoder实现整个编码器要用到单层）

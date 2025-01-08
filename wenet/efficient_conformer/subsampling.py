@@ -21,6 +21,7 @@ import torch
 from wenet.transformer.subsampling import BaseSubsampling
 
 
+# 实现了一个二维卷积下采样模块，其主要功能是将输入数据的长度减少到原来的四分之一
 class Conv2dSubsampling2(BaseSubsampling):
     """Convolutional 2D subsampling (to 1/4 length).
 
@@ -72,3 +73,5 @@ class Conv2dSubsampling2(BaseSubsampling):
         x = self.out(x.transpose(1, 2).contiguous().view(b, t, c * f))
         x, pos_emb = self.pos_enc(x, offset)
         return x, pos_emb, x_mask[:, :, :-2:2]
+
+# 总结：实现了一个二维卷积下采样模块，其主要功能是将输入数据的长度减少到原来的四分之一

@@ -41,6 +41,7 @@ from wenet.utils.class_utils import (
 class EfficientConformerEncoder(torch.nn.Module):
     """Conformer encoder module."""
 
+    # 初始化方法，主要用于配置和构建一个高效的语音识别模型的编码器部分
     def __init__(self,
                  input_size: int,
                  output_size: int = 256,
@@ -101,8 +102,10 @@ class EfficientConformerEncoder(torch.nn.Module):
             WENET_EMB_CLASSES[pos_enc_layer_type](output_size,
                                                   positional_dropout_rate),
         )
+        # 根据 input_layer 选择合适的输入层类型（如卷积层），并创建位置编码层。
         self.input_layer = input_layer
         self.normalize_before = normalize_before
+        # 层归一化
         self.after_norm = torch.nn.LayerNorm(output_size, eps=1e-5)
         self.static_chunk_size = static_chunk_size
         self.use_dynamic_chunk = use_dynamic_chunk
@@ -217,6 +220,7 @@ class EfficientConformerEncoder(torch.nn.Module):
 
         self.encoders = torch.nn.ModuleList(layers)
 
+    # 设置全局块大小，并根据不同的子采样率计算块特征图的大小
     def set_global_chunk_size(self, chunk_size):
         """Used in ONNX export.
         """
@@ -231,9 +235,11 @@ class EfficientConformerEncoder(torch.nn.Module):
         else:
             self.chunk_feature_map = 4 * self.global_chunk_size + 3
 
+    # 返回实例输出大小
     def output_size(self) -> int:
         return self._output_size
 
+    # 用来计算下采样因子.遍历所有步幅层的索引，如果当前层的索引比某个步幅层大，则将该步幅乘入因子
     def calculate_downsampling_factor(self, i: int) -> int:
         factor = 1
         for idx, stride_idx in enumerate(self.stride_layer_idx):
@@ -241,6 +247,12 @@ class EfficientConformerEncoder(torch.nn.Module):
                 factor *= self.stride[idx]
         return factor
 
+    # 神经网络模块的前向传播方法，主要用于处理输入张量（xs 和 xs_lens）并输出经过嵌入和编码器层处理后的张量和掩码。
+    #forward 方法的主要功能是：
+    # 通过嵌入层将输入张量和其对应的掩码转换为适当的表示形式。
+    # 在编码器层中逐层处理输入，并根据需要进行下采样和掩码调整。
+    # 支持动态块解码和跨步处理，尤其是语音或序列处理任务中的块式解码。
+    # 最终输出处理后的张量和对应的掩码，用于后续的解码或其他计算。
     def forward(
         self,
         xs: torch.Tensor,
@@ -297,6 +309,7 @@ class EfficientConformerEncoder(torch.nn.Module):
         # for cross attention with decoder later
         return xs, masks
 
+    # 处理一个解码块（chunk）。该方法允许在块处理模式下进行推理，尤其是当使用了缓存机制时，可以避免重复计算，提升效率。
     def forward_chunk(
         self,
         xs: torch.Tensor,
@@ -461,6 +474,7 @@ class EfficientConformerEncoder(torch.nn.Module):
 
         return xs, r_att_cache, r_cnn_cache
 
+    # 实现了流式的逐块前向传播。它特别适用于解码大序列输入时，逐块处理输入数据，以模拟实时流式处理，减少内存消耗并加快推理速度。
     def forward_chunk_by_chunk(
             self,
             xs: torch.Tensor,
@@ -558,3 +572,5 @@ class EfficientConformerEncoder(torch.nn.Module):
                            device=ys.device,
                            dtype=torch.bool)
         return ys, masks
+
+# 总结：实现 Efficient Conformer 模型中的编码器部分

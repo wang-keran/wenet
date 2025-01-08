@@ -21,6 +21,7 @@ from torch import nn
 
 
 class ConvolutionModule(nn.Module):
+    # conformer模型中的卷积模块
     """ConvolutionModule in Conformer model."""
 
     def __init__(self,
@@ -90,6 +91,8 @@ class ConvolutionModule(nn.Module):
         self.activation = activation
         self.stride = stride
 
+    # 定义了一个神经网络模块的前向传播函数，主要用于处理时序数据（如音频或序列数据）。
+    # 该模块结合了多种技术，包括因果卷积（用于处理序列数据的自回归性质）、门控线性单元（GLU）、深度可分离卷积以及层归一化。
     def forward(
         self,
         x: torch.Tensor,
@@ -152,3 +155,5 @@ class ConvolutionModule(nn.Module):
             x.masked_fill_(~mask_pad, 0.0)
 
         return x.transpose(1, 2), new_cache
+
+# 主要负责实现高效的卷积操作，这是为了优化模型的计算效率和性能。

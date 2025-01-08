@@ -26,6 +26,7 @@ from wenet.transformer.attention import MultiHeadedAttention
 
 
 class GroupedRelPositionMultiHeadedAttention(MultiHeadedAttention):
+    # 结合了多头注意力机制和相对位置编码的神经网络层
     """Multi-Head Attention layer with relative position encoding.
     Paper:
         https://arxiv.org/abs/1901.02860
@@ -36,6 +37,7 @@ class GroupedRelPositionMultiHeadedAttention(MultiHeadedAttention):
         dropout_rate (float): Dropout rate.
     """
 
+    # 初始化类，包括继承的类和新写的数据
     def __init__(self, n_head, n_feat, dropout_rate, group_size=3):
         """Construct an RelPositionMultiHeadedAttention object."""
         super().__init__(n_head, n_feat, dropout_rate)
@@ -53,6 +55,7 @@ class GroupedRelPositionMultiHeadedAttention(MultiHeadedAttention):
         torch.nn.init.xavier_uniform_(self.pos_bias_u)
         torch.nn.init.xavier_uniform_(self.pos_bias_v)
 
+    # 用于计算相对位置编码，为了捕捉序列中元素之间的相对位置关系而常用的一种方法，这个函数特别适用于像Transformer这样的模型
     def rel_shift(self, x, zero_triu: bool = False):
         """Compute relative positinal encoding.
         Args:
@@ -79,6 +82,7 @@ class GroupedRelPositionMultiHeadedAttention(MultiHeadedAttention):
 
         return x
 
+    # 对输入的张量 Q, K, V, P 进行分组大小(group_size)对齐的填充操作
     def pad4group(self, Q, K, V, P, mask, group_size: int = 3):
         """
         q: (#batch, time1, size) -> (#batch, head, time1, size/head)
@@ -124,6 +128,7 @@ class GroupedRelPositionMultiHeadedAttention(MultiHeadedAttention):
 
         return Q, K, V, P, mask, padding_Q
 
+    # 用于计算注意力上下文向量
     def forward_attention(self,
                           value: torch.Tensor,
                           scores: torch.Tensor,
@@ -176,6 +181,8 @@ class GroupedRelPositionMultiHeadedAttention(MultiHeadedAttention):
 
         return self.linear_out(x)  # (batch, time1, d_model)
 
+    # 它实现了带有相对位置编码的缩放点积注意力（Scaled Dot Product Attention）。
+    # 这个函数还支持使用缓存（cache）来优化自回归模型（如语言模型或序列到序列模型）中的解码过程
     def forward(
         self,
         query: torch.Tensor,
@@ -255,3 +262,5 @@ class GroupedRelPositionMultiHeadedAttention(MultiHeadedAttention):
             self.d_k * self.group_size)  # (batch, head, time1, time2)
 
         return self.forward_attention(v, scores, mask, padding_q), new_cache
+
+# 用于计算注意力权重的函数和相关操作
