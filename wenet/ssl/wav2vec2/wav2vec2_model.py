@@ -12,6 +12,7 @@ from wenet.transformer.encoder_layer import ConformerEncoderLayer
 from wenet.utils.mask import make_non_pad_mask
 
 
+# 从特征向量中抽样出负样本的索引。
 def _sample_negative_indices(features_shape: Tuple,
                              num_negatives: int,
                              device: torch.device,
@@ -55,6 +56,7 @@ def _sample_negative_indices(features_shape: Tuple,
     return sampled_negative_indices.reshape(batch_size, -1)
 
 
+# 计算对比损失，用于训练模型。
 def _compute_contrastive_loss(quantized_features: torch.Tensor,
                               features: torch.Tensor,
                               negative_indices: torch.Tensor,
@@ -104,6 +106,7 @@ def _compute_contrastive_loss(quantized_features: torch.Tensor,
 
 class Wav2vec2Model(torch.nn.Module):
 
+    # 初始化方法
     def __init__(
         self,
         encoder: Union[ConformerEncoder, TransformerEncoder],
@@ -181,6 +184,7 @@ class Wav2vec2Model(torch.nn.Module):
         # reset parameter
         self.reset_encoder_parameter()
 
+    # 重置编码器中各个层的参数。
     def reset_encoder_parameter(self):
 
         def _reset_parameter(module: torch.nn.Module):
@@ -217,6 +221,7 @@ class Wav2vec2Model(torch.nn.Module):
                 _reset_parameter(conv1)
                 _reset_parameter(conv2)
 
+    # 前向传播方法 
     @torch.jit.unused
     def forward(
         self,
@@ -282,6 +287,7 @@ class Wav2vec2Model(torch.nn.Module):
             "loss_diversity": loss_diversity,
         }
 
+    # 生成掩码并应用于输入特征。
     def _apply_mask(
             self, xs: torch.Tensor,
             xs_masks: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -299,6 +305,7 @@ class Wav2vec2Model(torch.nn.Module):
 
         return xs, masks
 
+    # 对输入特征进行全局均值归一化和嵌入。
     def _forward_subsampling(
         self, xs: torch.Tensor, xs_lens: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -309,6 +316,7 @@ class Wav2vec2Model(torch.nn.Module):
         xs, pos_emb, masks = self.encoder.embed(xs, masks)
         return xs, pos_emb, masks
 
+    # 将特征输入编码器的各层。
     def _forward_encoder_blocks(self, xs: torch.Tensor, xs_masks: torch.Tensor,
                                 pos_emb: torch.Tensor, mask_pad: torch.Tensor):
 
@@ -322,3 +330,6 @@ class Wav2vec2Model(torch.nn.Module):
         # return the masks before encoder layers, and the masks will be used
         # for cross attention with decoder later
         return xs, masks
+
+# 总结：整体来看，Wav2vec2Model 类结合了自监督学习、Gumbel 量化和对比学习方法，通过对音频特征进行高效的量化和学习，为音频处理任务提供了强大的模型架构。
+# 它使用掩码和对比损失来增强特征的表示能力，并通过动态调整参数来优化训练过程。

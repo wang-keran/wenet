@@ -8,6 +8,7 @@ from wenet.transformer.attention import RelPositionMultiHeadedAttention
 from wenet.transformer.encoder_layer import ConformerEncoderLayer
 
 
+# 该函数用于对潜在表示进行量化处理。
 def quantize_vector(latent: torch.Tensor, codebook: torch.Tensor):
     """
     Symbols in comments:
@@ -54,8 +55,10 @@ def quantize_vector(latent: torch.Tensor, codebook: torch.Tensor):
     return quantized, codes, one_hot
 
 
+# 这个类是基于 PyTorch 的神经网络模块，主要用于音频特征的量化和处理。
 class BestRQModel(torch.nn.Module):
 
+    # 构造函数
     def __init__(
         self,
         encoder: torch.nn.Module,
@@ -119,6 +122,8 @@ class BestRQModel(torch.nn.Module):
         # force reset encoder papameter
         self.reset_encoder_parameter()
 
+    # 该方法用于重置编码器中不同类型的层（如线性层和卷积层）的参数。
+    # 根据层的类型应用不同的初始化策略。
     def reset_encoder_parameter(self):
 
         def _reset_parameter(module: torch.nn.Module):
@@ -155,6 +160,7 @@ class BestRQModel(torch.nn.Module):
                 _reset_parameter(conv1)
                 _reset_parameter(conv2)
 
+    # 该方法定义了模型的前向传播逻辑。
     def forward(
         self,
         batch: Dict,
@@ -213,6 +219,7 @@ class BestRQModel(torch.nn.Module):
             "th_accuracy": codes_acc,
         }
 
+    # 该方法用于根据掩蔽概率生成掩蔽信号。
     def _apply_mask_signal(
             self, input: torch.Tensor,
             input_lens: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -254,6 +261,7 @@ class BestRQModel(torch.nn.Module):
         xs = torch.where(masks_expand, mask_emb, input)
         return xs, subsampling_mask
 
+    # 该方法用于将输入特征堆叠以适应后续处理。
     def _stack_features(self, input: torch.Tensor,
                         input_lens: torch.Tensor) -> torch.Tensor:
 
@@ -276,6 +284,7 @@ class BestRQModel(torch.nn.Module):
         norm_stack_input = (stack_input - mean) / (std + 1e-5)
         return norm_stack_input
 
+    # 该方法用于计算模型的损失值。
     def _compute_loss(self, input: torch.Tensor, target: torch.Tensor,
                       mask: torch.Tensor) -> torch.Tensor:
         logits = input.transpose(1, 2).contiguous().view(-1, input.size(-1))
@@ -287,6 +296,7 @@ class BestRQModel(torch.nn.Module):
         loss = (loss * mask.view(-1)).sum() / mask.sum()
         return loss
 
+    # 该方法用于获取输入特征的最近嵌入索引。
     def _nearest_embedding_idx(self, xs: torch.Tensor) -> torch.Tensor:
         xs = torch.matmul(xs, self.projection.to(xs.device))
         xs = xs / (xs.norm(dim=-1, p=2, keepdim=True) + 1e-8)
@@ -295,3 +305,7 @@ class BestRQModel(torch.nn.Module):
         xs_flatten = xs.view(B * T, C)
         _, codes, _ = quantize_vector(xs_flatten, codebooks)
         return codes.reshape(B, T, -1)  # [B, T, num_codebooks]
+
+# 总结：功能：BestRQModel 是一个结合了深度学习特征提取、量化和掩蔽机制的音频处理模型，能够有效地处理和压缩音频信号。
+# 灵活性：模型允许通过掩蔽策略和正则化方法调整训练过程，以提高模型的鲁棒性。
+# 量化机制：通过量化和嵌入处理，模型能够压缩音频特征，减少存储需求并加快推理速度。

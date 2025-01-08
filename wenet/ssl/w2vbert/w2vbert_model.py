@@ -13,8 +13,11 @@ from wenet.transformer.encoder_layer import ConformerEncoderLayer
 from wenet.utils.mask import make_non_pad_mask
 
 
+#这段代码定义了一个名为 W2VBERTModel 的 PyTorch 模型类，旨在通过一种称为 W2V-BERT 的风格来训练音频特征表示。
+# 该模型结合了编码器（如 Conformer 或 Transformer），实现了一些特定的功能，包括掩码处理和对比学习
 class W2VBERTModel(torch.nn.Module):
 
+    # 类构造函数
     def __init__(
         self,
         encoder: Union[ConformerEncoder, TransformerEncoder],
@@ -122,6 +125,7 @@ class W2VBERTModel(torch.nn.Module):
         # reset parameter
         self.reset_encoder_parameter()
 
+    # 重置编码器中各层的参数，包括线性层和卷积层。采用不同的初始化方法，如正态分布和均匀分布，来提高模型的收敛性。
     def reset_encoder_parameter(self):
 
         def _reset_parameter(module: torch.nn.Module):
@@ -158,6 +162,7 @@ class W2VBERTModel(torch.nn.Module):
                 _reset_parameter(conv1)
                 _reset_parameter(conv2)
 
+    # 模型的前向传播函数，接受批量输入并计算输出。
     @torch.jit.unused
     def forward(
         self,
@@ -250,6 +255,7 @@ class W2VBERTModel(torch.nn.Module):
             "loss_mlm": loss_mlm,
         }
 
+    # 根据掩码索引对输入特征进行掩码处理。使用正态分布的随机值替换被掩码的特征。
     def _apply_mask(
             self, xs: torch.Tensor,
             xs_masks: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -270,6 +276,7 @@ class W2VBERTModel(torch.nn.Module):
 
         return xs, masks
 
+    # 计算掩码语言模型的损失。使用 softmax 和掩码来选择目标的损失。
     def _compute_mlm_loss(self, input: torch.Tensor, target: torch.Tensor,
                           mask: torch.Tensor) -> torch.Tensor:
         log_probs = torch.log_softmax(input, dim=-1).transpose(
@@ -283,6 +290,7 @@ class W2VBERTModel(torch.nn.Module):
         loss = numerator / (denominator * self.num_codebooks)
         return loss
 
+    # 进行前向的下采样过程，得到特征、位置嵌入和掩码。
     def _forward_subsampling(
         self, xs: torch.Tensor, xs_lens: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -293,6 +301,7 @@ class W2VBERTModel(torch.nn.Module):
         xs, pos_emb, masks = self.encoder.embed(xs, masks)
         return xs, pos_emb, masks
 
+    # 通过编码器的前几层计算对比向量，接着通过剩余层计算掩码向量。
     def _forward_encoder_blocks(
         self, xs: torch.Tensor, xs_masks: torch.Tensor, pos_emb: torch.Tensor,
         mask_pad: torch.Tensor
@@ -317,3 +326,6 @@ class W2VBERTModel(torch.nn.Module):
         # return the masks before encoder layers, and the masks will be used
         # for cross attention with decoder later
         return contrastive_vec, masked_vec, masks
+
+# 总结：W2VBERTModel 结合了掩码语言模型和对比学习的思想，通过掩码特征的随机替换和上下文学习来增强模型的特征表示能力。
+# 该实现中的各个组件和方法都是为了提高模型的性能并适应不同的音频输入特征。

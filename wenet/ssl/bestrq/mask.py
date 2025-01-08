@@ -2,6 +2,8 @@ import torch
 import numpy as np
 
 
+# 这段代码实现了一些与深度学习和信号处理相关的功能，特别是用于处理输入数据的遮罩生成和采样。
+# 该函数从给定的概率密度函数 (pdf) 中进行采样。
 def _sampler(pdf: torch.Tensor, num_samples: int,
              device=torch.device('cpu')) -> torch.Tensor:
     size = pdf.size()
@@ -10,6 +12,7 @@ def _sampler(pdf: torch.Tensor, num_samples: int,
     return indices
 
 
+# 计算在序列中要遮罩的索引。
 def compute_mask_indices(
         size: torch.Size,
         mask_prob: float,
@@ -55,6 +58,7 @@ def compute_mask_indices(
     return torch.scatter(full_mask, dim=1, index=mask_idxs, src=ones)
 
 
+# 更复杂的遮罩索引计算，支持多种遮罩类型和其他参数。
 def compute_mask_indices_v2(
         shape,
         padding_mask,
@@ -158,3 +162,6 @@ def compute_mask_indices_v2(
 
     mask = torch.from_numpy(mask).to(device)
     return mask
+
+# 总结：这些函数在训练深度学习模型时提供了输入数据的随机遮罩功能，这对于提高模型的鲁棒性和防止过拟合非常有用。
+# 通过遮罩，模型能够在某些输入信息缺失的情况下依然进行有效的学习。
