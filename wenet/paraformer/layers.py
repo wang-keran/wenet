@@ -21,6 +21,7 @@ from wenet.utils.mask import make_non_pad_mask
 
 class LFR(torch.nn.Module):
 
+    # 初始化
     def __init__(self, m: int = 7, n: int = 6) -> None:
         """
         Actually, this implements stacking frames and skipping frames.
@@ -37,6 +38,7 @@ class LFR(torch.nn.Module):
 
         self.left_padding_nums = math.ceil((self.m - 1) // 2)
 
+    # 前向方法
     def forward(self, input: torch.Tensor,
                 input_lens: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         orign_type = input_lens.dtype
@@ -100,6 +102,7 @@ class PositionwiseFeedForwardDecoderSANM(torch.nn.Module):
 
     """
 
+    # 构建一个位置逐层前馈网络，由两个线性层和激活函数组成。
     def __init__(self,
                  idim,
                  hidden_units,
@@ -116,6 +119,8 @@ class PositionwiseFeedForwardDecoderSANM(torch.nn.Module):
         self.activation = activation
         self.norm = torch.nn.LayerNorm(hidden_units)
 
+    # 输入: 输入张量 x。
+    # 输出: 经过前馈网络处理后的张量。
     def forward(self, x):
         """Forward function."""
         return self.w_2(self.norm(self.dropout(self.activation(self.w_1(x)))))
@@ -123,6 +128,7 @@ class PositionwiseFeedForwardDecoderSANM(torch.nn.Module):
 
 class AliParaformerEncoderLayer(TransformerEncoderLayer):
 
+    # 功能: 初始化 encoder 层，并使用 LayerNorm 进行归一化。
     def __init__(self,
                  size: int,
                  self_attn: torch.nn.Module,
@@ -139,6 +145,7 @@ class AliParaformerEncoderLayer(TransformerEncoderLayer):
         del self.norm1
         self.norm1 = torch.nn.LayerNorm(in_size)
 
+    # 功能: 计算输入张量 x 的前向传播，并应用自注意力和前馈网络。
     def forward(
         self,
         x: torch.Tensor,
@@ -178,6 +185,7 @@ class AliParaformerEncoderLayer(TransformerEncoderLayer):
         return x, mask, new_att_cache, fake_cnn_cache
 
 
+# 创建嵌入层和多个 AliParaformerEncoderLayer 层，构建一个完整的 encoder。
 class SanmEncoder(BaseEncoder):
 
     def __init__(
@@ -272,6 +280,7 @@ class SanmEncoder(BaseEncoder):
         if self.normalize_before:
             self.after_norm = torch.nn.LayerNorm(output_size)
 
+    # 将输入数据通过 encoder 层进行处理。
     def forward_layers(self, xs: torch.Tensor, chunk_masks: torch.Tensor,
                        pos_emb: torch.Tensor,
                        mask_pad: torch.Tensor) -> torch.Tensor:
@@ -281,6 +290,7 @@ class SanmEncoder(BaseEncoder):
             xs, _, _, _ = layer(xs, chunk_masks, pos_emb, mask_pad)
         return xs
 
+    # 这段代码是一个 PyTorch 模型中用于执行前向传播的函数，特别是用于实现检查点机制（checkpointing）的。
     @torch.jit.unused
     def forward_layers_checkpointed(self, xs: torch.Tensor,
                                     chunk_masks: torch.Tensor,
@@ -298,6 +308,7 @@ class SanmEncoder(BaseEncoder):
         return xs
 
 
+# 构建解码器的多个层，创建嵌入层等。
 class _Decoders3(torch.nn.Module):
     """Paraformer has a decoder3"""
 
@@ -312,6 +323,7 @@ class _Decoders3(torch.nn.Module):
 
 class SanmDecoderLayer(DecoderLayer):
 
+    # 计算解码器的前向传播。
     def __init__(self,
                  size: int,
                  self_attn: Optional[torch.nn.Module],
@@ -326,6 +338,7 @@ class SanmDecoderLayer(DecoderLayer):
         self.norm2 = torch.nn.LayerNorm(size, eps=1e-12)
         self.norm3 = torch.nn.LayerNorm(size, eps=1e-12)
 
+    # 计算输入张量的前向传播，并处理目标和源注意力。
     def forward(
         self,
         tgt: torch.Tensor,
@@ -377,8 +390,11 @@ class SanmDecoderLayer(DecoderLayer):
         return x, tgt_mask, memory, memory_mask
 
 
+# 用于实现一种特定的 Transformer 解码器架构。
+# 实现了一个自定义的解码器，结合了多种不同的注意力机制和前馈网络
 class SanmDecoder(TransformerDecoder):
 
+    #  类的初始化方法
     def __init__(
         self,
         vocab_size: int,
@@ -413,7 +429,9 @@ class SanmDecoder(TransformerDecoder):
                          normalize_before,
                          src_attention,
                          gradient_checkpointing=gradient_checkpointing)
+        # 删除和重定义嵌入层
         del self.embed, self.decoders
+        # 定义解码器层
         self.decoders = torch.nn.ModuleList([
             SanmDecoderLayer(
                 encoder_output_size,
@@ -433,6 +451,7 @@ class SanmDecoder(TransformerDecoder):
         # NOTE(Mddct): att_layer_num == num_blocks in released pararformer model
         assert att_layer_num == num_blocks
 
+        # 解码器的其他层
         # NOTE(Mddct): Paraformer has a deocder3
         self.decoders3 = torch.nn.ModuleList([
             _Decoders3(
@@ -441,6 +460,7 @@ class SanmDecoder(TransformerDecoder):
                                                    linear_units, dropout_rate))
         ])
 
+    # 前向传播方法
     def forward(
         self,
         encoder_out: torch.Tensor,
@@ -465,6 +485,7 @@ class SanmDecoder(TransformerDecoder):
             x = self.output_layer(x)
         return x, torch.tensor(0.0), ys_pad_lens
 
+    # 处理解码层的前向传播
     def forward_layers(self, x: torch.Tensor, tgt_mask: torch.Tensor,
                        memory: torch.Tensor,
                        memory_mask: torch.Tensor) -> torch.Tensor:
@@ -474,6 +495,7 @@ class SanmDecoder(TransformerDecoder):
             x = layer(x)
         return x
 
+    # 带检查点的前向传播方法
     @torch.jit.unused
     def forward_layers_checkpointed(self, x: torch.Tensor,
                                     tgt_mask: torch.Tensor,
@@ -492,3 +514,5 @@ class SanmDecoder(TransformerDecoder):
         for layer in self.decoders3:
             x = layer(x)
         return x
+
+# 总结：实现了一个名为 SanmDecoder 的解码器，基于 PyTorch 框架。该解码器结合了多个模块和类，包括帧堆叠和跳帧的功能。

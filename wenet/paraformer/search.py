@@ -7,12 +7,14 @@ from wenet.utils.mask import (make_non_pad_mask, mask_finished_preds,
                               mask_finished_scores)
 
 
+# 判断一个字符是否为中文字符或数字（0-9）或特定符号（@）。
 def _isChinese(ch: str):
     if '\u4e00' <= ch <= '\u9fff' or '\u0030' <= ch <= '\u0039' or ch == '@':
         return True
     return False
 
 
+# 判断输入的字符串或字符串列表是否全为中文字符。
 def _isAllChinese(word: Union[List[Any], str]):
     word_lists = []
     for i in word:
@@ -32,6 +34,7 @@ def _isAllChinese(word: Union[List[Any], str]):
     return True
 
 
+# 判断输入的字符串或字符串列表是否全为字母。
 def _isAllAlpha(word: Union[List[Any], str]):
     word_lists = []
     for i in word:
@@ -54,6 +57,7 @@ def _isAllAlpha(word: Union[List[Any], str]):
     return True
 
 
+# 对解码得到的词语列表进行美化，生成最终的字符串输出。
 def paraformer_beautify_result(tokens: List[str]) -> str:
     middle_lists = []
     word_lists = []
@@ -110,6 +114,7 @@ def paraformer_beautify_result(tokens: List[str]) -> str:
     return ''.join(word_lists).strip()
 
 
+# 根据 CIF 峰值生成音频片段的时间戳。
 def gen_timestamps_from_peak(cif_peaks: List[int],
                              num_frames: int,
                              frame_rate=0.02):
@@ -136,6 +141,7 @@ def gen_timestamps_from_peak(cif_peaks: List[int],
     return times
 
 
+# 实现贪婪搜索解码策略。
 def paraformer_greedy_search(
         decoder_out: torch.Tensor,
         decoder_out_lens: torch.Tensor,
@@ -177,6 +183,7 @@ def paraformer_greedy_search(
     return results
 
 
+# 实现束搜索解码策略，返回最佳解码结果。
 def paraformer_beam_search(decoder_out: torch.Tensor,
                            decoder_out_lens: torch.Tensor,
                            beam_size: int = 10,
@@ -197,6 +204,7 @@ def paraformer_beam_search(decoder_out: torch.Tensor,
     return results
 
 
+# 执行批量束搜索，处理模型的输出。
 def _batch_beam_search(
     logit: torch.Tensor,
     masks: torch.Tensor,

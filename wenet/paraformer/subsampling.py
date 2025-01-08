@@ -3,10 +3,12 @@ import torch
 from wenet.transformer.subsampling import BaseSubsampling
 
 
+# 这个类是一个基于Paraformer的下采样实现，主要用于对输入张量进行处理，以减少数据量并进行位置编码。
 class IdentitySubsampling(BaseSubsampling):
     """ Paraformer subsampling
     """
 
+    # 初始化方法
     def __init__(self, idim: int, odim: int, dropout_rate: float,
                  pos_enc_class: torch.nn.Module):
         super().__init__()
@@ -15,6 +17,7 @@ class IdentitySubsampling(BaseSubsampling):
         self.subsampling_rate = 6
         self.pos_enc = pos_enc_class
 
+    # 前向传播方法，执行下采样操作
     def forward(
         self,
         x: torch.Tensor,
@@ -43,6 +46,9 @@ class IdentitySubsampling(BaseSubsampling):
         x, pos_emb = self.pos_enc(x, offset)
         return x, pos_emb, x_mask
 
+    # 位置编码方法：用于生成指定大小的位置信息编码。
     def position_encoding(self, offset: Union[int, torch.Tensor],
                           size: int) -> torch.Tensor:
         return self.pos_enc.position_encoding(offset + 1, size)
+
+# IdentitySubsampling 类实现了基于Paraformer的下采样机制。它通过继承 BaseSubsampling 类，重写了前向传播方法以实现对输入张量的下采样和位置编码。

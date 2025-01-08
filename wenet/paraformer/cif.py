@@ -21,30 +21,37 @@ from torchaudio.compliance.kaldi import Tuple
 from wenet.utils.mask import make_pad_mask
 
 
+# 主要用于处理音频序列（如语音信号）并提取相应的特征。
+# 它结合了卷积神经网络（CNN）和一些特定的功能，如注意力机制，来生成声学嵌入（acoustic embeddings）。
 class Cif(nn.Module):
 
+    # 初始化方法
     def __init__(
         self,
-        idim,
-        l_order,
-        r_order,
-        threshold=1.0,
-        dropout=0.1,
-        smooth_factor=1.0,
-        noise_threshold=0.0,
-        tail_threshold=0.45,
-        residual=True,
-        cnn_groups=0,
+        idim,   # 输入维度。
+        l_order,    # 左上下文的长度。
+        r_order,    # 右上下文的长度。
+        threshold=1.0,  # 用于判断激活的阈值。
+        dropout=0.1,    # Dropout 的概率，用于防止过拟合。
+        smooth_factor=1.0,  # 平滑因子，用于调整 alphas。
+        noise_threshold=0.0,    # 噪声阈值，用于抑制低激活。
+        tail_threshold=0.45,    # 尾部处理的阈值。
+        residual=True,  # 是否使用残差连接。
+        cnn_groups=0,   # CNN 的组数。
     ):
         super().__init__()
 
+        # 对输入进行填充，以确保卷积操作不减少序列长度。
         self.pad = nn.ConstantPad1d((l_order, r_order), 0.0)
+        # 一个 1D 卷积层，用于特征提取。
         self.cif_conv1d = nn.Conv1d(
             idim,
             idim,
             l_order + r_order + 1,
             groups=idim if cnn_groups == 0 else cnn_groups)
+        # 一个全连接层，用于生成最终输出。
         self.cif_output = nn.Linear(idim, 1)
+        # Dropout 层，帮助减少过拟合。
         self.dropout = torch.nn.Dropout(p=dropout)
         self.threshold = threshold
         self.smooth_factor = smooth_factor
@@ -52,6 +59,7 @@ class Cif(nn.Module):
         self.tail_threshold = tail_threshold
         self.residual = residual
 
+    # 神经网络的前向传播过程。
     def forward(
         self,
         hidden,
@@ -107,6 +115,8 @@ class Cif(nn.Module):
 
         return acoustic_embeds, token_num, alphas, cif_peak
 
+    # 处理隐藏层输出和 alphas 的尾部部分：如果提供了掩码，更新 alphas 和 hidden 以反映尾部信息。
+    # 计算并返回新的 hidden、alphas 和 token 数量的下界。
     def tail_process_fn(
         self,
         hidden: torch.Tensor,
@@ -141,6 +151,7 @@ class Cif(nn.Module):
 
         return hidden, alphas, token_num_floor
 
+    # 用于生成帧对齐：根据 alphas 计算对齐结果，并返回对齐的张量和其长度。
     def gen_frame_alignments(self,
                              alphas: torch.Tensor = None,
                              encoder_sequence_length: torch.Tensor = None):
@@ -206,13 +217,16 @@ class Cif(nn.Module):
             predictor_alignments_length.detach()
 
 
+# 定义了一个简单的平均绝对误差（MAE）损失函数：
 class MAELoss(nn.Module):
 
+    # 初始化：可以选择是否归一化长度。
     def __init__(self, normalize_length=False):
         super(MAELoss, self).__init__()
         self.normalize_length = normalize_length
         self.criterion = torch.nn.L1Loss(reduction='sum')
 
+    # 前向方法：计算 token 长度与预测长度之间的 MAE。
     def forward(self, token_length, pre_token_length):
         loss_token_normalizer = token_length.size(0)
         if self.normalize_length:
@@ -222,6 +236,8 @@ class MAELoss(nn.Module):
         return loss
 
 
+# 实现了一个累积发生函数的计算
+# 该函数通过遍历时间序列，逐步累加每个时间点的 alphas 值，并根据设定的阈值 threshold 来判断是否发生事件。
 def cif_without_hidden(alphas: torch.Tensor, threshold: float):
     # https://github.com/alibaba-damo-academy/FunASR/blob/main/funasr/models/predictor/cif.py#L187
     batch_size, len_time = alphas.size()
@@ -247,6 +263,8 @@ def cif_without_hidden(alphas: torch.Tensor, threshold: float):
     return fires
 
 
+# 实现了一个基于时间序列的循环神经网络（RNN）的处理过程
+# 该函数的主要目的是处理输入的隐藏状态hidden和时间步长上的权重alphas，并根据设定的阈值threshold来决定是否“触发”（fire）某个时间步长。
 def cif(hidden: torch.Tensor, alphas: torch.Tensor, threshold: float):
     batch_size, len_time, hidden_size = hidden.size()
 
@@ -291,3 +309,5 @@ def cif(hidden: torch.Tensor, alphas: torch.Tensor, threshold: float):
                             device=hidden.device)
         list_ls.append(torch.cat([l, pad_l], 0))
     return torch.stack(list_ls, 0), fires
+
+# 总结：主要用于处理音频序列（如语音信号）并提取相应的特征。它结合了卷积神经网络（CNN）和一些特定的功能，如注意力机制，来生成声学嵌入（acoustic embeddings）。

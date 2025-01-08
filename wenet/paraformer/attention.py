@@ -5,6 +5,8 @@ import math
 import torch
 
 
+# 实现了一个多头注意力机制的模块，结合了标准的多头注意力层和自适应归一化模块（SANM）。
+# 这是一个多头注意力层的实现，继承自 MultiHeadedAttention 类。主要功能是计算注意力权重，并在此基础上引入了一些自适应特性。
 class MultiHeadedAttentionSANM(MultiHeadedAttention):
     """Multi-Head Attention layer.
     Args:
@@ -13,6 +15,7 @@ class MultiHeadedAttentionSANM(MultiHeadedAttention):
         dropout_rate (float): Dropout rate.
     """
 
+    # 构造函数 __init__
     def __init__(self,
                  n_head,
                  in_feat,
@@ -44,6 +47,8 @@ class MultiHeadedAttentionSANM(MultiHeadedAttention):
         self.pad_fn = nn.ConstantPad1d((self.left_padding, self.right_padding),
                                        0.0)
 
+    # 将输入的查询、键、值分解为 Q（查询）、K（键）和 V（值）三个部分。
+    # 对 Q、K、V 进行形状重塑，以适应多头机制。
     def forward_qkv(
         self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -61,6 +66,9 @@ class MultiHeadedAttentionSANM(MultiHeadedAttention):
 
         return q, k, v
 
+    # 对输入进行 FSMN（时序卷积） 的处理。
+    # 根据需要应用填充并将输入送入卷积层。
+    # 通过 dropout 随机丢弃一部分特征以防止过拟合。
     def forward_fsmn(self,
                      inputs: torch.Tensor,
                      mask: torch.Tensor,
@@ -84,6 +92,9 @@ class MultiHeadedAttentionSANM(MultiHeadedAttention):
         x = self.dropout(x)
         return x * mask
 
+    # 获取 Q、K、V。
+    # 如果缓存存在，拼接键和值。
+    # 计算注意力分数，并将 FSMN 结果与注意力输出相加。
     def forward(
         self,
         query: torch.Tensor,
@@ -114,10 +125,12 @@ class MultiHeadedAttentionSANM(MultiHeadedAttention):
         return att + fsmn_memory, new_cache
 
 
+# 这是一个简单的多头注意力实现，主要用于特定场景下的无效化处理。
 class DummyMultiHeadSANM(MultiHeadedAttentionSANM):
     """A dummy multihead attention for Paraformer befroe cross attention
     """
 
+    # 初始化
     def __init__(self,
                  n_head,
                  in_feat,
@@ -130,6 +143,7 @@ class DummyMultiHeadSANM(MultiHeadedAttentionSANM):
         del self.linear_q_k_v
         del self.linear_out
 
+    # 仅处理输入查询，进行 FSMN （时序卷积）操作，并返回处理后的结果。
     def forward(
         self,
         query: torch.Tensor,
@@ -158,8 +172,10 @@ class DummyMultiHeadSANM(MultiHeadedAttentionSANM):
         return x, cache
 
 
+# 这是一个交叉多头注意力层的实现。
 class MultiHeadAttentionCross(MultiHeadedAttentionSANM):
 
+    # 删除了 linear_q_k_v 和 fsmn_block，并定义了新的线性层 linear_q 和 linear_k_v。
     def __init__(self,
                  n_head,
                  in_feat,
@@ -176,6 +192,7 @@ class MultiHeadAttentionCross(MultiHeadedAttentionSANM):
         self.linear_k_v = nn.Linear(
             n_feat if target_size is None else target_size, n_feat * 2)
 
+    # 处理输入的查询和键（值与键相同），计算出 Q、K、V。
     def forward_qkv(
         self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -197,6 +214,7 @@ class MultiHeadAttentionCross(MultiHeadedAttentionSANM):
 
         return q_h, k_h, v_h
 
+    # 计算 Q、K 的注意力分数，并根据这些分数对 V 进行加权，最后返回注意力输出。
     def forward(
         self,
         query: torch.Tensor,
@@ -215,3 +233,6 @@ class MultiHeadAttentionCross(MultiHeadedAttentionSANM):
         # TODO(Mddct): support future streaming paraformer
         cache: Optional[torch.Tensor] = None
         return self.forward_attention(v, scores, mask), cache
+
+# 该代码实现了一种结合多头注意力机制和 FSMN（时序卷积）的注意力层，增强了模型的表示能力。
+# 通过将不同的类和方法组合在一起，这些实现可以适应多种应用场景，特别是在需要高效特征学习的序列建模任务中。

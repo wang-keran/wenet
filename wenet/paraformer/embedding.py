@@ -1,6 +1,7 @@
 from wenet.transformer.embedding import WhisperPositionalEncoding
 
 
+# 它实现了在 Paraformer 模型中使用的正弦位置编码。
 class ParaformerPositinoalEncoding(WhisperPositionalEncoding):
     """ Sinusoids position encoding used in paraformer.encoder
     """

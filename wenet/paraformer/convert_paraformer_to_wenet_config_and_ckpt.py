@@ -14,6 +14,7 @@ from typing import Dict, List, Optional, Tuple
 import yaml
 
 
+# 主要目的是从给定的 CMVN 文件中读取数据，并提取均值和方差，返回两个列表：均值列表（means_list）和标准差列表（vars_list）。
 def _load_paraformer_cmvn(cmvn_file) -> Tuple[List, List]:
     with open(cmvn_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
@@ -43,6 +44,7 @@ def _load_paraformer_cmvn(cmvn_file) -> Tuple[List, List]:
     return means_list, vars_list
 
 
+# 过滤输入字典 input_dict，只保留 fields_to_keep 中的字段。
 def _filter_dict_fields(input_dict, fields_to_keep):
     filtered_dict = {
         key: value
@@ -51,6 +53,7 @@ def _filter_dict_fields(input_dict, fields_to_keep):
     return filtered_dict
 
 
+# 调用 _load_paraformer_cmvn 获取均值和标准差，构建 WeNet 格式的字典，并将其转换为 JSON 格式字符串。
 def _to_wenet_cmvn(cmvn_file):
     means, istd = _load_paraformer_cmvn(cmvn_file)
 
@@ -62,6 +65,7 @@ def _to_wenet_cmvn(cmvn_file):
     return json.dumps(d)
 
 
+# 从配置字典中提取令牌列表，并将其写入 wenet_dict_path，为每个令牌生成索引。
 def extract_dict(configs, wenet_dict_path: str) -> int:
     tokens = configs['token_list']
     with open(wenet_dict_path, '+w') as f:
@@ -74,6 +78,7 @@ def extract_dict(configs, wenet_dict_path: str) -> int:
     return len(tokens)
 
 
+# 将 Paraformer 的 CMVN 数据转换为 WeNet 所需的 JSON 格式，并保存到指定路径。
 def convert_to_wenet_json_cmvn(paraformer_cmvn_path, wenet_cmvn_path: str):
     json_cmvn = _to_wenet_cmvn(paraformer_cmvn_path)
     with open(wenet_cmvn_path, '+w') as f:
@@ -81,6 +86,7 @@ def convert_to_wenet_json_cmvn(paraformer_cmvn_path, wenet_cmvn_path: str):
         f.flush()
 
 
+# 创建 WeNet 的分词器配置，定义特殊令牌，并将分词字典复制到输出路径。
 def convert_to_wenet_tokenizer_conf(symbol_table_path, seg_dict, configs,
                                     output_path):
     configs['tokenizer'] = 'paraformer'
@@ -96,6 +102,7 @@ def convert_to_wenet_tokenizer_conf(symbol_table_path, seg_dict, configs,
     shutil.copy(seg_dict, output_path)
 
 
+# 根据给定的字段过滤配置字典，生成 WeNet 所需的 YAML 配置文件。
 def convert_to_wenet_yaml(configs, wenet_yaml_path: str,
                           fields_to_keep: List[str]) -> Dict:
     configs = _filter_dict_fields(configs, fields_to_keep)
@@ -171,6 +178,7 @@ def convert_to_wenet_yaml(configs, wenet_yaml_path: str,
     return configs
 
 
+# 将 Paraformer 模型的状态字典转换为 WeNet 格式，处理参数名称的映射，并保存。
 def convert_to_wenet_state_dict(args, wenet_model_path):
     wenet_state_dict = {}
     checkpoint = torch.load(args.paraformer_model, map_location='cpu')
@@ -195,6 +203,7 @@ def convert_to_wenet_state_dict(args, wenet_model_path):
     torch.save(wenet_state_dict, wenet_model_path)
 
 
+# 解析命令行参数，返回一个包含参数的对象。
 def get_args():
     parser = argparse.ArgumentParser(description='load ali-paraformer')
     parser.add_argument('--paraformer_config',
@@ -217,6 +226,7 @@ def get_args():
     return args
 
 
+# 下载指定的文件并保存到指定目录，显示下载进度。
 def _download_fn(output_dir,
                  name,
                  renmae: Optional[str] = None,
@@ -251,6 +261,7 @@ def _download_fn(output_dir,
     print("{} download finished".format(name))
 
 
+# 检查并下载必要的资产（配置文件、CMVN 文件、分词字典等），如果它们不存在。
 def may_get_assets_and_refine_args(args):
 
     assets_dir = os.path.join(Path.home(),
@@ -282,6 +293,10 @@ def may_get_assets_and_refine_args(args):
             _download_fn(assets_dir, model_name, "model.pt")
 
 
+# 获取命令行参数。
+# 确保必要的文件存在。
+# 加载配置并进行各种转换（CMVN、词典、YAML 配置、模型状态字典）。
+# 打印输出路径。
 def main():
 
     args = get_args()
@@ -324,6 +339,9 @@ def main():
                                                      args.output_dir))
 
 
+# 运行主函数
 if __name__ == "__main__":
 
     main()
+
+# 总结：主要用于处理和转换与 Paraformer 语音识别模型相关的配置和参数文件，以便将它们转换为 WeNet 框架可以使用的格式。

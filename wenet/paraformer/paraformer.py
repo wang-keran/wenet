@@ -32,8 +32,10 @@ from wenet.utils.common import IGNORE_ID, add_sos_eos, th_accuracy
 from wenet.utils.mask import make_non_pad_mask
 
 
+# 用于实现一个预测模型。该模型主要用于处理音频特征并进行相关任务，可能是时间序列数据的预测。
 class Predictor(torch.nn.Module):
 
+    # 类的初始化方法
     def __init__(
         self,
         idim,
@@ -71,6 +73,7 @@ class Predictor(torch.nn.Module):
                                       bidirectional=True)
         self.tp_output = torch.nn.Linear(idim * 2, 1)
 
+    # 前向传播方法
     def forward(self,
                 hidden,
                 target_label: Optional[torch.Tensor] = None,
@@ -79,16 +82,19 @@ class Predictor(torch.nn.Module):
                 mask_chunk_predictor: Optional[torch.Tensor] = None,
                 target_label_length: Optional[torch.Tensor] = None):
 
+        # 调用主预测器
         acoustic_embeds, token_num, alphas, cif_peak = self.predictor(
             hidden, target_label, mask, ignore_id, mask_chunk_predictor,
             target_label_length)
 
+        # 上采样和 LSTM 处理
         output, (_, _) = self.tp_blstm(
             self.tp_upsample_cnn(hidden.transpose(1, 2)).transpose(1, 2))
         tp_alphas = torch.sigmoid(self.tp_output(output))
         tp_alphas = torch.nn.functional.relu(tp_alphas * self.smooth_factor2 -
                                              self.noise_threshold2)
 
+        # 处理掩码
         mask = mask.repeat(1, self.upsample_times,
                            1).transpose(-1,
                                         -2).reshape(tp_alphas.shape[0], -1)
@@ -108,6 +114,7 @@ class Paraformer(ASRModel):
 
     """
 
+    # 初始化方法
     def __init__(self,
                  vocab_size: int,
                  encoder: BaseEncoder,
@@ -147,6 +154,12 @@ class Paraformer(ASRModel):
         #    labels:     你 好 we@@ net eos
         self.add_eos = add_eos
 
+    # 前向传播方法：实现模型的前向传播，输入是一个包含语音特征和目标文本的批次数据。
+    # 主要步骤包括：
+    # 编码器：处理输入的语音特征，生成编码输出。
+    # 预测器：根据编码输出生成声学嵌入和其他预测。
+    # 解码器：解码声学嵌入生成最终的预测。
+    # 损失计算：计算不同损失（CTC损失、数量损失等）。
     @torch.jit.unused
     def forward(
         self,
@@ -214,6 +227,7 @@ class Paraformer(ASRModel):
             "th_accuracy": acc_att,
         }
 
+    # 计算注意力损失和准确率。
     def _calc_att_loss(
         self,
         encoder_out: torch.Tensor,
@@ -231,6 +245,7 @@ class Paraformer(ASRModel):
                               ignore_label=self.ignore_id)
         return loss_att, acc_att
 
+    # 实现样本抽样过程，可能是为了增强训练过程的多样性。
     @torch.jit.unused
     def _sampler(self, encoder_out, encoder_out_mask, ys_pad, ys_pad_lens,
                  pre_acoustic_embeds):
@@ -272,6 +287,7 @@ class Paraformer(ASRModel):
         # zero out the paddings
         return sematic_embeds * tgt_mask.unsqueeze(2)
 
+    # 执行编码过程。
     def _forward_encoder(
         self,
         speech: torch.Tensor,
@@ -289,6 +305,7 @@ class Paraformer(ASRModel):
                                                      num_decoding_left_chunks)
         return encoder_out, encoder_out_mask
 
+    # 实现解码方法，支持不同的搜索策略（贪心搜索、束搜索等）。
     @torch.jit.export
     def forward_paraformer(
         self,
@@ -356,6 +373,7 @@ class Paraformer(ASRModel):
             "tp_mask": tp_mask
         }
 
+    # 实现解码方法，支持不同的搜索策略（贪心搜索、束搜索等）。
     def decode(
         self,
         methods: List[str],
@@ -408,3 +426,5 @@ class Paraformer(ASRModel):
                     blank_id)
                 results['ctc_prefix_beam_search'] = ctc_prefix_result
         return results
+
+# 总结：该模型结合了编码器、解码器、预测器和 CTC 机制，通过一系列前向传播和损失计算步骤，旨在实现快速且准确的语音识别功能。该代码的设计考虑了多种损失类型和解码策略，以提升模型的性能。
