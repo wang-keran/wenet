@@ -20,6 +20,8 @@ import os
 import copy
 import sys
 
+sys.path.insert(0, '/home/wangkeran/桌面/WENET/wenet')
+
 import torch
 import yaml
 import numpy as np

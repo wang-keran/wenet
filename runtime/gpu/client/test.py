@@ -5,6 +5,7 @@ import tritonclient.grpc as grpcclient
 from speech_client import *
 import numpy as np
 import argparse
+import time
 
 #无法docker start直接打开是因为这是拉取的现有的镜像
 #这个对象将用于定义和解析命令行参数。
@@ -128,13 +129,14 @@ parser.add_argument(
     help="subsampling rate",
 )
 
+start_time=time.time()
 #解析从args[]传进来的命令
 # FLAGS = parser.parse_args()
 FLAGS = parser.parse_args(args=[])
 
 #切块识别
 speech_client_cls = StreamingSpeechClient
-x="./test_wavs/long.wav"    #这里是音频路径
+x="./test_wavs/mid.wav"    #这里是音频路径
 #grpc创建连接
 with grpcclient.InferenceServerClient(url=FLAGS.url, verbose=FLAGS.verbose) as triton_client:
     #赋值表示当前是GRPC连接
@@ -146,6 +148,9 @@ with grpcclient.InferenceServerClient(url=FLAGS.url, verbose=FLAGS.verbose) as t
     #语音识别
     result = speech_client.recognize(x)
 
+end_time=time.time()
+print(f"运行时间为：{end_time-start_time}秒")
+
 #这里是输出的结果格式
 #output
 #Get response from 1th chunk: 
@@ -156,3 +161,26 @@ with grpcclient.InferenceServerClient(url=FLAGS.url, verbose=FLAGS.verbose) as t
 #Get response from 6th chunk: 大学生利用漏洞免费吃肯德机
 #Get response from 7th chunk: 大学生利用漏洞免费吃肯德机获刑
 #Get response from 8th chunk: 大学生利用漏洞免费吃肯德基获刑
+
+# 第一把的成绩
+# 原流式运行时间为：0.17780041694641113秒,
+# 原流式长音频：0.24332761764526367秒
+# moonshine中音频：0.5764920711517334秒
+# moonshine长音频：0.6331214904785156秒
+# whisper-v3-turbo中音频：0.45749521255493164秒
+# whisper-v3-turbo长音频：0.6579666137695312秒
+# soyler超大模型中音频：0.6秒秒
+# soyler超大模型长音频：0.5秒
+
+
+
+#原版中音频稳定：0.11755776405334473秒
+#原版长音频稳定：0.18992233276367188秒
+# whisper-v3-turbo中音频稳定：0.11801719665527344秒
+# whisper-v3-turbo长音频稳定：0.2638437747955322秒
+# moonshine中音频稳定：0.16878366470336914秒
+# moonshine长音频稳定：0.2508258819580078秒
+# soyler超大模型中音频：0.12386918067932129秒秒
+# soyler超大模型长音频：0.21893835067749023秒
+# sherpa-onnx-zipformer穩定中音頻：0.1244194507598877秒
+# sherpa-onnx-zipformer穩定长音频：0.22435283660888672秒

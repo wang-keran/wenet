@@ -20,6 +20,8 @@ import logging
 import os
 import sys
 
+sys.path.insert(0, '/home/wangkeran/桌面/WENET/wenet')
+
 import torch
 import torch.nn.functional as F
 import yaml
@@ -1473,9 +1475,11 @@ if __name__ == "__main__":
         onnxmltools.utils.save_model(decoder_onnx_model, decoder_onnx_path)
     # dump configurations
 
+    print("导出模型完成，将要保存配置文件")
     # 保存配置文件
     config_dir = os.path.join(args.output_onnx_dir, "config.yaml")
     with open(config_dir, "w") as out:
         yaml.dump(onnx_config, out)
+    print("导出所有文件完成")
 
 # 显卡版本导出模型完成
