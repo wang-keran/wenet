@@ -22,6 +22,7 @@ from wenet.transformer.attention import T_CACHE
 from wenet.utils.class_utils import WENET_NORM_CLASSES
 
 
+# 表示这是一个 PyTorch 模块，主要用于实现解码器层。
 class DecoderLayer(nn.Module):
     """Single decoder layer module.
 
@@ -41,6 +42,7 @@ class DecoderLayer(nn.Module):
             False: to use layer_norm after each sub-block.
     """
 
+    # 初始化
     def __init__(
         self,
         size: int,
@@ -65,6 +67,7 @@ class DecoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
         self.normalize_before = normalize_before
 
+    # 前向传播方法
     def forward(
         self,
         tgt: torch.Tensor,
@@ -93,6 +96,7 @@ class DecoderLayer(nn.Module):
             torch.Tensor: Encoded memory mask (#batch, maxlen_in).
 
         """
+        # 计算解码特征
         if cache is not None:
             att_cache = cache['self_att_cache']
             cross_att_cache = cache['cross_att_cache']
@@ -125,6 +129,7 @@ class DecoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.norm1(x)
 
+        # 交叉注意力模块
         if self.src_attn is not None:
             residual = x
             if self.normalize_before:
@@ -150,4 +155,9 @@ class DecoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.norm3(x)
 
+        # 返回解码后的输出、目标掩码、编码器的记忆和记忆掩码。
         return x, tgt_mask, memory, memory_mask
+
+# 该类实现了 Transformer 解码器层的核心功能，结合了自注意力、交叉注意力和前馈网络。
+# 通过层归一化和丢弃操作提高了模型的稳定性和泛化能力。
+# 支持缓存机制，使得在推理阶段可以有效地处理序列生成。    

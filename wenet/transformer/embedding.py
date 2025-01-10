@@ -24,6 +24,7 @@ import numpy as np
 from wenet.utils.rope_utils import precompute_freqs_cis
 
 
+# 实现了多种位置编码（Positional Encoding）的类，主要用于深度学习模型中，尤其是在自然语言处理（NLP）和序列数据处理的任务中。
 class PositionalEncoding(torch.nn.Module):
     """Positional encoding.
 
@@ -35,6 +36,7 @@ class PositionalEncoding(torch.nn.Module):
     PE(pos, 2i+1) = cos(pos/(10000^(2i/dmodel)))
     """
 
+    # 初始化，全是拿torch实现的，unsqueeze是python的
     def __init__(self,
                  d_model: int,
                  dropout_rate: float,
@@ -58,6 +60,7 @@ class PositionalEncoding(torch.nn.Module):
         pe = pe.unsqueeze(0)
         self.register_buffer("pe", pe)
 
+    # 为输入张量 x 添加位置编码。
     def forward(self,
                 x: torch.Tensor,
                 offset: Union[int, torch.Tensor] = 0) \
@@ -77,6 +80,7 @@ class PositionalEncoding(torch.nn.Module):
         x = x * self.xscale + pos_emb
         return self.dropout(x), self.dropout(pos_emb)
 
+    # 生成指定位置的编码，支持流式处理。为了后面确定输入元素位置做准备
     def position_encoding(self,
                           offset: Union[int, torch.Tensor],
                           size: int,
@@ -118,6 +122,7 @@ class PositionalEncoding(torch.nn.Module):
         return pos_emb
 
 
+# 继承自 PositionalEncoding，实现了相对位置编码。
 class RelPositionalEncoding(PositionalEncoding):
     """Relative positional encoding module.
     See : Appendix B in https://arxiv.org/abs/1901.02860
@@ -127,10 +132,12 @@ class RelPositionalEncoding(PositionalEncoding):
         max_len (int): Maximum input length.
     """
 
+    # 初始化
     def __init__(self, d_model: int, dropout_rate: float, max_len: int = 5000):
         """Initialize class."""
         super().__init__(d_model, dropout_rate, max_len, reverse=True)
 
+    # 类似于父类，但可能处理相对位置编码的方式不同。
     def forward(self,
                 x: torch.Tensor,
                 offset: Union[int, torch.Tensor] = 0) \
@@ -147,10 +154,12 @@ class RelPositionalEncoding(PositionalEncoding):
         return self.dropout(x), self.dropout(pos_emb)
 
 
+# 继承自 PositionalEncoding，实现了 OpenAI Whisper 编码器使用的正弦位置编码。
 class WhisperPositionalEncoding(PositionalEncoding):
     """ Sinusoids position encoding used in openai-whisper.encoder
     """
 
+    # 计算正弦和余弦函数的编码，并存储在 self.pe 中。
     def __init__(self, d_model: int, dropout_rate: float, max_len: int = 1500):
         super().__init__(d_model, dropout_rate, max_len)
         self.xscale = 1.0
@@ -164,10 +173,12 @@ class WhisperPositionalEncoding(PositionalEncoding):
         self.register_buffer("pe", pe.unsqueeze(0))
 
 
+# 继承自 PositionalEncoding，实现可学习的位置编码。
 class LearnablePositionalEncoding(PositionalEncoding):
     """ Learnable position encoding used in openai-whisper.decoder
     """
 
+    # 初始化一个可训练的参数 self.pe。
     def __init__(self, d_model: int, dropout_rate: float, max_len: int = 448):
         super().__init__(d_model, dropout_rate, max_len)
         # NOTE(xcsong): overwrite self.pe & self.xscale
@@ -175,15 +186,18 @@ class LearnablePositionalEncoding(PositionalEncoding):
         self.xscale = 1.0
 
 
+# 实现不使用位置编码的情况。
 class NoPositionalEncoding(torch.nn.Module):
     """ No position encoding
     """
 
+    # 初始化
     def __init__(self, d_model: int, dropout_rate: float):
         super().__init__()
         self.d_model = d_model
         self.dropout = torch.nn.Dropout(p=dropout_rate)
 
+    # 定义前向传播逻辑。
     def forward(self,
                 x: torch.Tensor,
                 offset: Union[int, torch.Tensor] = 0) \
@@ -193,6 +207,7 @@ class NoPositionalEncoding(torch.nn.Module):
         pos_emb = torch.zeros(1, x.size(1), self.d_model).to(x.device)
         return self.dropout(x), pos_emb
 
+    # 返回对应大小的零向量，用于生成位置编码。
     def position_encoding(self, offset: Union[int, torch.Tensor],
                           size: int) -> torch.Tensor:
         return torch.zeros(1, size, self.d_model)
@@ -257,3 +272,7 @@ class RopePositionalEncoding(PositionalEncoding):
             p=self.dropout_rate,
         )
         return x * mask
+
+# 总结：这段代码提供了多种位置编码的实现，适应不同的场景和需求。
+# 每个类都有其独特的构造和 forward 方法，可以在实际应用中根据需要选择使用。
+# 位置编码是为了使模型能够理解输入序列中元素的相对或绝对位置，对模型的性能有显著影响。

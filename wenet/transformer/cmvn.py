@@ -15,8 +15,11 @@
 import torch
 
 
+# 实现了一个全局均值方差归一化（Global CMVN）的 PyTorch 模块。
+# 主要用于对输入特征进行归一化处理。
 class GlobalCMVN(torch.nn.Module):
 
+    # 初始化方法
     def __init__(self,
                  mean: torch.Tensor,
                  istd: torch.Tensor,
@@ -29,10 +32,13 @@ class GlobalCMVN(torch.nn.Module):
         super().__init__()
         assert mean.shape == istd.shape
         self.norm_var = norm_var
+        # 这段代码的作用是将张量 mean 和 istd 注册为 PyTorch 模型中的缓冲区（buffer），并为它们命名为 "mean" 和 "istd"。
+        # 通过这种方式，mean 和 istd 可以作为模型的一部分进行保存和加载，但它们不会参与梯度计算。
         # The buffer can be accessed from this module using self.mean
         self.register_buffer("mean", mean)
         self.register_buffer("istd", istd)
 
+    # 前向传播方法
     def forward(self, x: torch.Tensor):
         """
         Args:
@@ -45,3 +51,5 @@ class GlobalCMVN(torch.nn.Module):
         if self.norm_var:
             x = x * self.istd
         return x
+
+# 总结：该类实现了全局均值方差归一化的功能，可以对输入特征进行均值和标准差的归一化处理。

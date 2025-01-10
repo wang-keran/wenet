@@ -26,6 +26,7 @@ from wenet.utils.rope_utils import WENET_APPLY_ROTARY_EMB
 T_CACHE = Tuple[torch.Tensor, torch.Tensor]
 
 
+# 实现多头注意力机制，支持自注意力和跨注意力计算，都是拿torch实现的。
 class MultiHeadedAttention(nn.Module):
     """Multi-Head Attention layer.
     if n_kv_head != None and n_kv_head != n_head
@@ -44,6 +45,7 @@ class MultiHeadedAttention(nn.Module):
 
     """
 
+    # 初始化
     def __init__(self,
                  n_head: int,
                  n_feat: int,
@@ -80,6 +82,7 @@ class MultiHeadedAttention(nn.Module):
         self.use_sdpa = use_sdpa
         self.dropout_rate = dropout_rate
 
+    # 该方法负责将输入张量 x 通过对应的线性层（查询、键或值），并将输出的最后一个维度拆分成多个头的形式。
     def _forward_linearx(self,
                          name: str,
                          x: torch.Tensor,
@@ -106,6 +109,7 @@ class MultiHeadedAttention(nn.Module):
                             -2)  # (batch, ...,  head or head_kv, time, d_k)
         return x
 
+    # 该方法接受查询、键和值的输入，并调用 _forward_linearx 方法将它们转化为多头格式。
     def forward_qkv(
         self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -130,6 +134,7 @@ class MultiHeadedAttention(nn.Module):
         v = self._forward_linearx('value', value)
         return q, k, v
 
+    # 该方法计算注意力上下文向量。
     def forward_attention(
         self,
         value: torch.Tensor,
@@ -177,6 +182,8 @@ class MultiHeadedAttention(nn.Module):
         x = x.view(x_shape)  # (batch, ..., time1, d_model)
         return self.linear_out(x)  # (batch, ...,  time1, d_model)
 
+    # 这个函数主要用于在注意力机制中更新键和值的缓存，特别是在非训练模式下处理缓存的拼接和扩展，以支持多查询或多组注意力机制。
+    # 通过这些处理，可以在推理过程中高效地管理和使用缓存，提高模型的性能和灵活性。
     def _update_kv_and_cache(
             self,
             k: torch.Tensor,
@@ -244,6 +251,7 @@ class MultiHeadedAttention(nn.Module):
 
         return k, v, new_cache
 
+    # 这是主要的前向计算方法，执行多头注意力的具体计算
     def forward(
         self,
         query: torch.Tensor,
@@ -304,6 +312,7 @@ class MultiHeadedAttention(nn.Module):
             return self.linear_out(output), new_cache
 
 
+# 该类是 MultiHeadedAttention 的子类，添加了相对位置编码的功能。
 class RelPositionMultiHeadedAttention(MultiHeadedAttention):
     """Multi-Head Attention layer with relative position encoding.
     Paper: https://arxiv.org/abs/1901.02860
@@ -313,6 +322,7 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
         dropout_rate (float): Dropout rate.
     """
 
+    # 初始化
     def __init__(self,
                  n_head: int,
                  n_feat: int,
@@ -335,6 +345,7 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
         torch.nn.init.xavier_uniform_(self.pos_bias_u)
         torch.nn.init.xavier_uniform_(self.pos_bias_v)
 
+    # 计算相对位置编码，并提供选项返回下三角部分的矩阵。
     def rel_shift(self, x, zero_triu: bool = False):
         """Compute relative positinal encoding.
         Args:
@@ -361,6 +372,7 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
 
         return x
 
+    # 添加了相对位置编码的计算。计算两个新的矩阵 matrix_ac 和 matrix_bd，并通过注意力计算结合它们。
     def forward(
         self,
         query: torch.Tensor,
@@ -403,6 +415,8 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
 
         # compute matrix b and matrix d
         # (batch, head, time1, time2)
+        # 这段代码的主要功能是在自注意力机制中计算查询向量和键向量之间的点积相关性矩阵。
+        # 通过转置键向量的最后两个维度，确保了矩阵乘法的维度匹配，生成的 matrix_bd 是后续注意力分数计算的基础。
         matrix_bd = torch.matmul(q_with_bias_v, p.transpose(-2, -1))
         # Remove rel_shift since it is useless in speech recognition,
         # and it requires special attention for streaming.
@@ -412,6 +426,7 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
             # first compute matrix a and matrix c
             # as described in https://arxiv.org/abs/1901.02860 Section 3.3
             # (batch, head, time1, time2)
+            # 矩阵相乘
             matrix_ac = torch.matmul(q_with_bias_u, k.transpose(-2, -1))
 
             scores = (matrix_ac + matrix_bd) / math.sqrt(
@@ -438,8 +453,10 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
             return self.linear_out(output), new_cache
 
 
+# 多头交叉注意力计算，继承了多头注意力计算，也是拿torch.nn.Module类实现的
 class MultiHeadedCrossAttention(MultiHeadedAttention):
 
+    # 初始化
     def __init__(self,
                  n_head: int,
                  n_feat: int,
@@ -453,6 +470,8 @@ class MultiHeadedCrossAttention(MultiHeadedAttention):
         super().__init__(n_head, n_feat, dropout_rate, query_bias, key_bias,
                          value_bias, use_sdpa, n_kv_head, head_dim)
 
+    # 在计算注意力时，支持不同批次和 Beam Search 的情况。
+    # 根据 use_sdpa 的值选择适当的注意力计算方式。
     def forward(
         self,
         query: torch.Tensor,
@@ -520,10 +539,12 @@ class MultiHeadedCrossAttention(MultiHeadedAttention):
         return output, new_cache
 
 
+# 实现了相对位置编码的多头注意力机制。
 class ShawRelPositionMultiHeadedAttention(MultiHeadedAttention):
     """ https://arxiv.org/pdf/1803.02155.pdf
     """
 
+    # 初始化参数包括头数、特征数、dropout率、查询、键和值的偏置、是否使用 sdpa、键值头数和头维度。
     def __init__(self,
                  n_head: int,
                  n_feat: int,
@@ -543,6 +564,7 @@ class ShawRelPositionMultiHeadedAttention(MultiHeadedAttention):
         self.rel_k_embed = torch.nn.Embedding(
             self.max_left_rel_pos + self.max_right_rel_pos + 1, self.d_k)
 
+    # 计算相对位置索引。
     def _relative_indices(self, keys: torch.Tensor) -> torch.Tensor:
         # (S, 1)
         indices = torch.arange(keys.size(2), device=keys.device).unsqueeze(0)
@@ -555,6 +577,7 @@ class ShawRelPositionMultiHeadedAttention(MultiHeadedAttention):
 
         return rel_indices + self.max_left_rel_pos
 
+    # 前向传播
     def forward(
         self,
         query: torch.Tensor,
@@ -596,8 +619,10 @@ class ShawRelPositionMultiHeadedAttention(MultiHeadedAttention):
             return self.linear_out(output), new_cache
 
 
+# 实现了旋转位置编码的多头注意力机制。
 class RopeMultiHeadedAttention(MultiHeadedAttention):
 
+    # 初始化参数包括头数、特征数、dropout率、查询、键和值的偏置、是否使用 sdpa、键值头数、头维度和样式。
     def __init__(self,
                  n_head: int,
                  n_feat: int,
@@ -613,6 +638,7 @@ class RopeMultiHeadedAttention(MultiHeadedAttention):
                          value_bias, use_sdpa, n_kv_head, head_dim)
         self.style = style
 
+    # 计算查询、键和值的张量。
     def forward(
         self,
         query: torch.Tensor,
@@ -684,3 +710,7 @@ class RopeMultiHeadedAttention(MultiHeadedAttention):
                 query.size(0), -1,
                 self.h * self.d_k))  # (batch, time1, d_model)
             return self.linear_out(output), new_cache
+
+# 总结：这段代码定义了多头注意力机制（Multi-Head Attention）及其一些变体的实现，
+# 这些类构成了多头注意力机制的核心，支持不同的注意力计算模式和位置编码，适用于自然语言处理等领域的深度学习模型
+# 使用相对位置编码和缓存机制可以提高模型在处理长序列时的效率和效果。

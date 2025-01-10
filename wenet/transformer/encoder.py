@@ -35,8 +35,11 @@ from wenet.utils.mask import add_optional_chunk_mask
 from wenet.utils.common import mask_to_bias
 
 
+# 主要是用于构建编码器（Encoder）模块，具体是Transformer编码器和Conformer编码器。
+# BaseEncoder类是所有编码器的基础，负责初始化和定义基本的前向传播逻辑。
 class BaseEncoder(torch.nn.Module):
 
+    # 初始化输入层、位置编码、归一化层等。
     def __init__(
         self,
         input_size: int,
@@ -118,9 +121,11 @@ class BaseEncoder(torch.nn.Module):
         self.gradient_checkpointing = gradient_checkpointing
         self.use_sdpa = use_sdpa
 
+    # 返回输出大小
     def output_size(self) -> int:
         return self._output_size
 
+    # 前向函数，定义了如何处理输入数据 xs，并返回编码器的输出以及子采样的掩码。
     def forward(
         self,
         xs: torch.Tensor,
@@ -151,12 +156,18 @@ class BaseEncoder(torch.nn.Module):
             checkpointing API because `__call__` attaches all the hooks of the module.
             https://discuss.pytorch.org/t/any-different-between-model-input-and-model-forward-input/3690/2
         """
+        # 获取时间步长
         T = xs.size(1)
+        # 使用 make_pad_mask 函数根据输入长度 xs_lens 创建一个掩码，并通过按位取反 ~ 转换为有效位置的掩码，是中间那个1位。
         masks = ~make_pad_mask(xs_lens, T).unsqueeze(1)  # (B, 1, T)
+        # 如果归一化不为空就对输入数据进行归一化
         if self.global_cmvn is not None:
             xs = self.global_cmvn(xs)
+        # 将输入特征 xs 通过嵌入层进行处理,转为稠密向量，同时获取位置编码 pos_emb 和更新后的掩码 masks。
         xs, pos_emb, masks = self.embed(xs, masks)
+        # 将有效位置的掩码保存到 mask_pad 变量中，以便在后续的处理过程中使用，确保模型在计算时只关注有效的输入数据。
         mask_pad = masks  # (B, 1, T/subsample_rate)
+        # 根据不同的设置（如动态块大小）生成相应的块掩码。
         chunk_masks = add_optional_chunk_mask(
             xs,
             masks,
@@ -168,13 +179,22 @@ class BaseEncoder(torch.nn.Module):
             # Since we allow up to 1s(100 frames) delay, the maximum
             # chunk_size is 100 / 4 = 25.
             max_chunk_size=int(100.0 / self.embed.subsampling_rate))
+        # （可选）如果使用 SDPA，则将块掩码转换为偏置形式。
+        # SDPA 不支持动态块，因此需要将块掩码转换为偏置形式。SDPA 代表 Sparse Dynamic Positioning Attention，是一种用于优化注意力机制的方法，特别是在处理序列数据时。它主要通过稀疏化注意力计算来提高效率，适应长序列输入。
+        # 稀疏化注意力：传统的自注意力机制计算复杂度为 O(n2)O(n2)，其中 nn 是输入序列的长度。SDPA 通过只计算部分重要位置之间的注意力关系，从而降低计算复杂度，提高处理速度。
         if self.use_sdpa:
             chunk_masks = mask_to_bias(chunk_masks, xs.dtype)
+        # 根据是否启用梯度检查点机制，选择使用 forward_layers_checkpointed 或 forward_layers 进行前向传播编码。
+        # 在前向传播期间，它会保存每一层的输出结果，以便在反向传播时使用。这意味着所有中间计算结果都被存储在内存中。
         if self.gradient_checkpointing and self.training:
             xs = self.forward_layers_checkpointed(xs, chunk_masks, pos_emb,
                                                   mask_pad)
+        # 使用了梯度检查点（gradient checkpointing）技术。在前向传播期间，它不会保存所有中间输出，而是选择在反向传播时重新计算这些输出。这可以显著降低内存消耗，尤其是在处理较大的模型或长序列时。
+        #     forward_layers_checkpointed 适合处理大模型或长序列的情况，因为它可以显著降低内存使用，但可能会增加计算时间，因为它需要在反向传播时重新计算中间结果。
+        #选择使用哪种方法通常取决于模型的大小和可用的内存资源。
         else:
             xs = self.forward_layers(xs, chunk_masks, pos_emb, mask_pad)
+        # 如果启用了归一化，则对编码器的输出进行归一化，便于节省模型推理时间和突出特征
         if self.normalize_before:
             xs = self.after_norm(xs)
         # Here we assume the mask is not changed in encoder layers, so just
@@ -182,6 +202,9 @@ class BaseEncoder(torch.nn.Module):
         # for cross attention with decoder later
         return xs, masks
 
+    # 该方法遍历 self.encoders 中的所有编码器层，并依次将输入 xs、chunk_masks、pos_emb 和 mask_pad 传递给每个编码器层进行处理。
+    # 每一层的输出会更新 xs 和 chunk_masks，而返回的其他值被忽略（用下划线 _ 表示）。
+    # 最后，返回最终的输出张量 xs
     def forward_layers(self, xs: torch.Tensor, chunk_masks: torch.Tensor,
                        pos_emb: torch.Tensor,
                        mask_pad: torch.Tensor) -> torch.Tensor:
@@ -189,6 +212,10 @@ class BaseEncoder(torch.nn.Module):
             xs, chunk_masks, _, _ = layer(xs, chunk_masks, pos_emb, mask_pad)
         return xs
 
+    # 该方法的主要目的是实现梯度检查点（gradient checkpointing），以降低内存使用。
+    # 在每一层的前向传播中，使用 ckpt.checkpoint 方法替代直接调用 layer.__call__，这是为了在反向传播时重新计算这一层的输出，从而节省内存。
+    # 通过这样做，可以处理更大的模型或者更长的序列，因为不需要在前向传播中保存所有中间计算结果。
+    # 返回最终输出张量 xs，与 forward_layers 方法相同。
     @torch.jit.unused
     def forward_layers_checkpointed(self, xs: torch.Tensor,
                                     chunk_masks: torch.Tensor,
@@ -203,6 +230,7 @@ class BaseEncoder(torch.nn.Module):
                                                     use_reentrant=False)
         return xs
 
+    # 分块处理：处理一个输入块（chunk），并返回当前块的输出及新的注意力缓存和 CNN 缓存。
     def forward_chunk(
         self,
         xs: torch.Tensor,
@@ -242,23 +270,39 @@ class BaseEncoder(torch.nn.Module):
                 same shape as the original cnn_cache.
 
         """
+        # 这里确保输入的批次大小为1，即只处理一条音频数据。
         assert xs.size(0) == 1
+        # tmp_masks：创建一个与输入长度相同的掩码，所有值为1，表示所有位置都有效，用于表示没有任何时间步需要被掩盖或忽略。
         # tmp_masks is just for interface compatibility
         tmp_masks = torch.ones(1,
                                xs.size(1),
                                device=xs.device,
                                dtype=torch.bool)
+        # self.global_cmvn(xs)：如果设置了全局均值方差归一化，应用该方法对输入数据进行归一化处理。
+        # 中心化（减去均值）：将输入的每一帧的特征值减去全局均值，确保数据的平均值接近 0。
+        # 缩放（除以标准差）：将结果除以全局标准差，保证特征的标准差为 1，从而得到尺度一致的数据。
+        # 这样可以加速收敛，使音频特征更明显，加速收敛，减少噪声干扰，通过torch来实现，但在这里面是none没有使用
+        # 给掩码扩张维度，位置在原来张量的第1个维度位置上，(1, T)变成(1,1, T)
         tmp_masks = tmp_masks.unsqueeze(1)
         if self.global_cmvn is not None:
             xs = self.global_cmvn(xs)
         # NOTE(xcsong): Before embed, shape(xs) is (b=1, time, mel-dim)
+        # 将输入特征 xs 通过嵌入层进行处理，得到经过嵌入的特征 xs 和位置编码 pos_emb，将离散的音素向量转换为更高维度的稠密的嵌入向量，并且获得新的嵌入向量的位置编码，利于下一步的推理。
+        # 为以前输入的向量提供位置信息，以帮助模型理解输入数据的位置关系。
         xs, pos_emb, _ = self.embed(xs, tmp_masks, offset)
         # NOTE(xcsong): After  embed, shape(xs) is (b=1, chunk_size, hidden-dim)
+        # 获取当前注意力缓存的层数和时间维度。
         elayers, cache_t1 = att_cache.size(0), att_cache.size(2)
+        # 获取音频块大小
         chunk_size = xs.size(1)
+        # attention_key_size 计算注意力键的大小，是之前的计算结果缓存大小加一块。
         attention_key_size = cache_t1 + chunk_size
+        # 先去utils文件夹里找到对应的类，再去subsampling里面找，然后通过torch到embedding里找到需要的方法实现
+        # offset:已经处理过输入帧的数量，cache_t1是已经处理过时间步的数量的缓存
+        # 为当前输入的嵌入向量提供位置信息
         pos_emb = self.embed.position_encoding(offset=offset - cache_t1,
                                                size=attention_key_size)
+        # 计算下一个缓存起始位置：根据 required_cache_size 的值计算下一次缓存的起始位置。
         if required_cache_size < 0:
             next_cache_start = 0
         elif required_cache_size == 0:
@@ -290,17 +334,24 @@ class BaseEncoder(torch.nn.Module):
             #   shape(new_cnn_cache) is (b=1, hidden-dim, cache_t2)
             r_att_cache.append(new_att_cache[:, :, next_cache_start:, :])
             r_cnn_cache.append(new_cnn_cache.unsqueeze(0))
+        #print("归一化前的音频：")
+        #print(xs)
         if self.normalize_before:
             xs = self.after_norm(xs)
 
+        #print("归一化后的音频：")
+        #print(xs)
+        print("使用了forward_chunk()方法444444444444444")
         # NOTE(xcsong): shape(r_att_cache) is (elayers, head, ?, d_k * 2),
         #   ? may be larger than cache_t1, it depends on required_cache_size
+        # 拼接注意力缓存，CNN缓存，返回结果
         r_att_cache = torch.cat(r_att_cache, dim=0)
         # NOTE(xcsong): shape(r_cnn_cache) is (e, b=1, hidden-dim, cache_t2)
         r_cnn_cache = torch.cat(r_cnn_cache, dim=0)
 
         return (xs, r_att_cache, r_cnn_cache)
 
+    # 分块逐步前向传播：实现逐块输入的前向传播，适合流式输入场景。该方法会逐步处理输入数据，每次处理一个块并更新缓存。
     def forward_chunk_by_chunk(
         self,
         xs: torch.Tensor,
@@ -333,23 +384,38 @@ class BaseEncoder(torch.nn.Module):
             xs (torch.Tensor): (1, max_len, dim)
             chunk_size (int): decoding chunk size
         """
+        # 判断解码块数是否大于0,小于等于0不解码
         assert decoding_chunk_size > 0
-        # The model is trained by static or dynamic chunk
+        # The model is trained by static or dynamic chunk确定必须使用动态块或者大于0的动态块
         assert self.static_chunk_size > 0 or self.use_dynamic_chunk
+        # 获取下采样率，选择不进行子采样的情况，下采样率是1,作用是压缩输入的步长，减少计算量
         subsampling = self.embed.subsampling_rate
+        # 当前帧右侧的上下文长度（最远可以看到多远），0+1,保证最远只能看到当前帧，右侧上下文全都看不见
         context = self.embed.right_context + 1  # Add current frame
+        # 每次处理的步长，每次处理块大小*块数（要躲开下采样的帧），确保在每次前向传播时，新的输入块与之前的计算结果保持合理的重叠，从而充分利用缓存（如注意力缓存和卷积缓存），提高效率。
         stride = subsampling * decoding_chunk_size
+        # -1考虑历史帧，+context考虑右侧上下文，但是没有右侧上下文，只有一个当前帧
         decoding_window = (decoding_chunk_size - 1) * subsampling + context
+        # 获取帧的数量
         num_frames = xs.size(1)
+        # 初始化缓存存储中间结果，因为是中间结果，所以肯定是编码过的块
         att_cache: torch.Tensor = torch.zeros((0, 0, 0, 0), device=xs.device)
         cnn_cache: torch.Tensor = torch.zeros((0, 0, 0, 0), device=xs.device)
+        # 存储解码块输出信息
         outputs = []
+        # 在逐块处理输入时，offset 表示已经处理过的输入帧的数量。每次处理完一个块后，offset 会增加，以指向下一个要处理的块的起始位置。
+        # 这样可以确保每个输入块都在正确的位置进行解码，从而保持数据的连续性。
         offset = 0
+        # 缓存左侧的编码过的 encoder 块，负数表示全都参考，0表示全都不参考，正数表示参考的大小。
         required_cache_size = decoding_chunk_size * num_decoding_left_chunks
 
         # Feed forward overlap input step by step
+        # 从第零帧开始到第num_frames - context + 1帧，步长为stride
         for cur in range(0, num_frames - context + 1, stride):
+            #print(111)  # 调试用
+            # 求当前处理块的长度，即当前帧cur到cur+decoding_window之间的帧数，不能大于num_frames一块的帧数
             end = min(cur + decoding_window, num_frames)
+            # chunk_xs：从输入张量 xs 中提取当前块的数据。: 表示在其他维度上选择所有数据，cur:end 则选择当前块的帧范围。
             chunk_xs = xs[:, cur:end, :]
             (y, att_cache,
              cnn_cache) = self.forward_chunk(chunk_xs, offset,
@@ -361,12 +427,16 @@ class BaseEncoder(torch.nn.Module):
         masks = torch.ones((1, 1, ys.size(1)),
                            device=ys.device,
                            dtype=torch.bool)
+        #print(ys)       # 调试用
+        print("2222222222222222222222222")
         return ys, masks
 
 
+# 实现一个 Transformer 编码器模块。
 class TransformerEncoder(BaseEncoder):
     """Transformer encoder module."""
 
+    # 初始化
     def __init__(
         self,
         input_size: int,
@@ -413,6 +483,7 @@ class TransformerEncoder(BaseEncoder):
                          use_sdpa, layer_norm_type, norm_eps)
 
         assert selfattention_layer_type in ['selfattn', 'rope_abs_selfattn']
+        # 创建编码器层
         activation = WENET_ACTIVATION_CLASSES[activation_type]()
         mlp_class = WENET_MLP_CLASSES[mlp_type]
         self.encoders = torch.nn.ModuleList([
@@ -437,9 +508,11 @@ class TransformerEncoder(BaseEncoder):
         ])
 
 
+# 实现了一个 Conformer 编码器，通过结合卷积和自注意力机制来提取和转换特征。
 class ConformerEncoder(BaseEncoder):
     """Conformer encoder module."""
 
+    # 初始化
     def __init__(
         self,
         input_size: int,
@@ -497,6 +570,7 @@ class ConformerEncoder(BaseEncoder):
             causal (bool): whether to use causal convolution or not.
             key_bias: whether use bias in attention.linear_k, False for whisper models.
         """
+        # 先去BaseEncoder进行初始化，然后去WENET_EMB_CLASSES初始化，EMB在Embedding.py中,使用RelPositionEncoding类，再走到PositionEncoding类，PositionEncoding类是基类，接着去BaseEncoder中的Conv2dSubsampling4(BaseSubsampling)类进行初始化在subsampling.py中
         super().__init__(input_size, output_size, attention_heads,
                          linear_units, num_blocks, dropout_rate,
                          positional_dropout_rate, attention_dropout_rate,
@@ -504,8 +578,10 @@ class ConformerEncoder(BaseEncoder):
                          static_chunk_size, use_dynamic_chunk, global_cmvn,
                          use_dynamic_left_chunk, gradient_checkpointing,
                          use_sdpa, layer_norm_type, norm_eps)
+        # 根据提供的 activation_type 选择合适的激活函数，实例化。
         activation = WENET_ACTIVATION_CLASSES[activation_type]()
 
+        # 自注意力模块定义
         # self-attention module definition
         encoder_selfattn_layer_args = (
             attention_heads,
@@ -518,6 +594,7 @@ class ConformerEncoder(BaseEncoder):
             n_kv_head,
             head_dim,
         )
+        # 定义前馈网络（MLP）所需的参数。
         # feed-forward module definition
         positionwise_layer_args = (
             output_size,
@@ -528,18 +605,27 @@ class ConformerEncoder(BaseEncoder):
             n_expert,
             n_expert_activated,
         )
+        # 定义卷积模块所需的参数。
         # convolution module definition
         convolution_layer_args = (output_size, cnn_module_kernel, activation,
                                   cnn_module_norm, causal, conv_bias)
 
+        print("111111111111111")
+        # 创建编码器层
+        # 根据 mlp_type 获取对应的 MLP 类。
         mlp_class = WENET_MLP_CLASSES[mlp_type]
+        # 编码器层列表：使用 torch.nn.ModuleList 存储多个 ConformerEncoderLayer 实例。
         self.encoders = torch.nn.ModuleList([
             ConformerEncoderLayer(
                 output_size,
+                # 先到attention.py里找到RelPositionMultiHeadedAttention(MultiHeadedAttention)进行初始化，再找到MultiHeadedAttention最底层初始化，最底层里全是utorch.nn
+                # RelPositionMultiHeadedAttention也全是torch.nn
+                # PositionFeedForward里面也全是torch.nn
                 WENET_ATTENTION_CLASSES[selfattention_layer_type](
                     *encoder_selfattn_layer_args),
                 mlp_class(*positionwise_layer_args),
                 mlp_class(*positionwise_layer_args) if macaron_style else None,
+                # 这里也是拿torch.nn实现的
                 ConvolutionModule(
                     *convolution_layer_args) if use_cnn_module else None,
                 dropout_rate,
@@ -548,3 +634,5 @@ class ConformerEncoder(BaseEncoder):
                 norm_eps=norm_eps,
             ) for _ in range(num_blocks)
         ])
+
+# 总结：实现了transformer和conformer编码器

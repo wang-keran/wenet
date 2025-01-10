@@ -33,6 +33,7 @@ from wenet.utils.common import mask_to_bias
 from wenet.utils.mask import (subsequent_mask, make_pad_mask)
 
 
+# 该类是 Transformer 解码器模块的基类。也是继承了torch.nn.module，也拿torch实现了解码器功能
 class TransformerDecoder(torch.nn.Module):
     """Base class of Transfomer decoder module.
     Args:
@@ -60,6 +61,7 @@ class TransformerDecoder(torch.nn.Module):
             using TorchScript or not
     """
 
+    # 初始化
     def __init__(
         self,
         vocab_size: int,
@@ -102,6 +104,7 @@ class TransformerDecoder(torch.nn.Module):
                                            positional_dropout_rate),
         )
 
+        # 归一化，全是torch的
         assert layer_norm_type in ['layer_norm', 'rms_norm']
         self.normalize_before = normalize_before
         self.after_norm = WENET_NORM_CLASSES[layer_norm_type](attention_dim,
@@ -114,13 +117,16 @@ class TransformerDecoder(torch.nn.Module):
         self.num_blocks = num_blocks
 
         mlp_class = WENET_MLP_CLASSES[mlp_type]
+        # 初始化了解码器
         self.decoders = torch.nn.ModuleList([
             DecoderLayer(
                 attention_dim,
+                # 自注意力
                 WENET_ATTENTION_CLASSES["selfattn"](
                     attention_heads, attention_dim,
                     self_attention_dropout_rate, query_bias, key_bias,
                     value_bias, use_sdpa, n_kv_head, head_dim),
+                # 交叉注意力
                 WENET_ATTENTION_CLASSES["crossattn"](
                     attention_heads, attention_dim, src_attention_dropout_rate,
                     query_bias, key_bias, value_bias, use_sdpa, n_kv_head,
@@ -143,6 +149,7 @@ class TransformerDecoder(torch.nn.Module):
         self.tie_word_embedding = tie_word_embedding
         self.use_sdpa = use_sdpa
 
+    # 前向传播方法
     def forward(
         self,
         memory: torch.Tensor,
@@ -200,6 +207,7 @@ class TransformerDecoder(torch.nn.Module):
         olens = tgt_mask.sum(1)
         return x, torch.tensor(0.0), olens
 
+    # 依次处理每个解码层，返回最后的输出。
     def forward_layers(self, x: torch.Tensor, tgt_mask: torch.Tensor,
                        memory: torch.Tensor,
                        memory_mask: torch.Tensor) -> torch.Tensor:
@@ -208,6 +216,7 @@ class TransformerDecoder(torch.nn.Module):
                                                      memory_mask)
         return x
 
+    # 该方法通过遍历 self.decoders 中的每一层，并使用 ckpt.checkpoint 方法进行检查点操作，以减少内存使用。
     @torch.jit.unused
     def forward_layers_checkpointed(self, x: torch.Tensor,
                                     tgt_mask: torch.Tensor,
@@ -223,6 +232,7 @@ class TransformerDecoder(torch.nn.Module):
                 use_reentrant=False)
         return x
 
+    # 专用于解码过程的单步推理。
     def forward_one_step(
         self,
         memory: torch.Tensor,
@@ -280,6 +290,7 @@ class TransformerDecoder(torch.nn.Module):
             y = torch.log_softmax(self.output_layer(y), dim=-1)
         return y
 
+    # 在嵌入层和输出层之间进行权重绑定或克隆，取决于是否使用 TorchScript。
     def tie_or_clone_weights(self, jit_mode: bool = True):
         """Tie or clone module weights (between word_emb and output_layer)
             depending of whether we are using TorchScript or not"""
@@ -311,6 +322,7 @@ class TransformerDecoder(torch.nn.Module):
             )
 
 
+# 该类也是 Transformer 解码器的基类，支持双向解码。
 class BiTransformerDecoder(torch.nn.Module):
     """Base class of Transfomer decoder module.
     Args:
@@ -331,6 +343,7 @@ class BiTransformerDecoder(torch.nn.Module):
         key_bias: whether use bias in attention.linear_k, False for whisper models.
     """
 
+    # 初始化
     def __init__(
         self,
         vocab_size: int,
@@ -427,6 +440,8 @@ class BiTransformerDecoder(torch.nn.Module):
             n_expert=n_expert,
             n_expert_activated=n_expert_activated)
 
+    # 处理左侧解码器和右侧解码器的前向传播。
+    # 返回左侧和右侧的解码结果以及输出长度。
     def forward(
         self,
         memory: torch.Tensor,
@@ -462,6 +477,7 @@ class BiTransformerDecoder(torch.nn.Module):
                                                r_ys_in_pad, ys_in_lens)
         return l_x, r_x, olens
 
+    # 仅调用左侧解码器的单步前向传播。
     def forward_one_step(
         self,
         memory: torch.Tensor,
@@ -487,8 +503,11 @@ class BiTransformerDecoder(torch.nn.Module):
         return self.left_decoder.forward_one_step(memory, memory_mask, tgt,
                                                   tgt_mask, cache)
 
+    # 将左侧和右侧解码器的权重绑定或克隆。
     def tie_or_clone_weights(self, jit_mode: bool = True):
         """Tie or clone module weights (between word_emb and output_layer)
             depending of whether we are using TorchScript or not"""
         self.left_decoder.tie_or_clone_weights(jit_mode)
         self.right_decoder.tie_or_clone_weights(jit_mode)
+
+# 总结：这段代码实现了一个灵活的 Transformer 解码器结构，支持自注意力机制和交叉注意力机制，允许通过双向解码提高模型性能。
