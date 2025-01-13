@@ -18,6 +18,8 @@ import torch
 from torch import nn
 
 
+# 定义了一个名为 LabelSmoothingLoss 的 PyTorch 损失类，旨在实现标签平滑（Label Smoothing）损失函数。
+# 标签平滑是一种正则化技术，用于改善模型的泛化能力和训练稳定性，尤其在分类任务中。
 class LabelSmoothingLoss(nn.Module):
     """Label-smoothing loss.
 
@@ -51,6 +53,7 @@ class LabelSmoothingLoss(nn.Module):
             normalize loss by batch size if False
     """
 
+    # 初始化方法
     def __init__(self,
                  size: int,
                  padding_idx: int,
@@ -65,6 +68,7 @@ class LabelSmoothingLoss(nn.Module):
         self.size = size
         self.normalize_length = normalize_length
 
+    # 计算预测值 x 和目标标签 target 之间的损失。
     def forward(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """Compute loss between x and target.
 
@@ -94,3 +98,6 @@ class LabelSmoothingLoss(nn.Module):
         kl = self.criterion(torch.log_softmax(x, dim=1), true_dist)
         denom = total if self.normalize_length else batch_size
         return kl.masked_fill(ignore.unsqueeze(1), 0).sum() / denom
+
+# 总结：LabelSmoothingLoss 实现了标签平滑损失，能够减少模型对单一标签的过拟合，从而提高泛化能力。
+# 提供了多种参数选项，允许用户根据需求调整损失计算的方式，适用于不同的任务场景。

@@ -17,6 +17,7 @@
 import torch
 
 
+# PositionwiseFeedForward 实现了一个位置逐步的前馈层。该层对序列中的每个位置应用相同的前馈网络，输出维度与输入维度相同，也是拿torch初始化实现的。
 class PositionwiseFeedForward(torch.nn.Module):
     """Positionwise feed forward layer.
 
@@ -47,6 +48,7 @@ class PositionwiseFeedForward(torch.nn.Module):
         self.dropout = torch.nn.Dropout(dropout_rate)
         self.w_2 = torch.nn.Linear(hidden_units, idim, bias=bias)
 
+    # 前向传播方法：对输入 xs 进行前向传播，经过两个线性变换和一个激活函数，输出张量的形状与输入相同，即 (B, L, D)。
     def forward(self, xs: torch.Tensor) -> torch.Tensor:
         """Forward function.
 
@@ -58,6 +60,8 @@ class PositionwiseFeedForward(torch.nn.Module):
         return self.w_2(self.dropout(self.activation(self.w_1(xs))))
 
 
+# MoEFFNLayer 实现了一个混合专家（Mixture of Experts）层，结合了 PositionwiseFeedForward。
+# 该层允许为每个输入令牌选择多个专家，从而动态地调整计算资源。
 class MoEFFNLayer(torch.nn.Module):
     """
     Mixture of expert with Positionwise feed forward layer
@@ -75,6 +79,7 @@ class MoEFFNLayer(torch.nn.Module):
         activation (torch.nn.Module): Activation function
     """
 
+    # 初始化
     def __init__(
         self,
         idim: int,
@@ -94,6 +99,10 @@ class MoEFFNLayer(torch.nn.Module):
         self.n_expert = n_expert
         self.n_expert_activated = n_expert_activated
 
+    # 前向传播方法：将输入张量 xs 形状调整为 (B*L, D)，使得每个令牌可以独立处理；
+    # 计算门控（gate）输出，以确定每个专家的激活。
+    # 使用 torch.topk 获取激活值最大的专家索引，并计算相应的权重。
+    # 对每个专家进行前向传播，并根据权重加权组合输出。
     def forward(self, xs: torch.Tensor) -> torch.Tensor:
         """Foward function.
         Args:
@@ -121,10 +130,12 @@ class MoEFFNLayer(torch.nn.Module):
         return output.view(B, L, D)
 
 
+# GatedVariantsMLP 是一个带有门控机制的多层感知机（MLP），它通过门控机制增强输入特征的选择性。
 class GatedVariantsMLP(torch.nn.Module):
     """ https://arxiv.org/pdf/2002.05202.pdf
     """
 
+    # 设计类似于 PositionwiseFeedForward，但增加了门控机制。
     def __init__(
         self,
         idim: int,
@@ -145,6 +156,7 @@ class GatedVariantsMLP(torch.nn.Module):
         # w_2 as down proj
         self.w_2 = torch.nn.Linear(hidden_units, idim, bias=bias)
 
+    # 计算门控值，并与输入 x 进行逐元素相乘（fuse），形成加权的上升投影。最后通过一个线性层（w_2）生成最终输出。最后通过一个线性层（w_2）生成最终输出。
     def forward(self, x) -> torch.Tensor:
         """Foward function.
         Args:
@@ -157,3 +169,8 @@ class GatedVariantsMLP(torch.nn.Module):
         up = self.w_1(x)
         fuse = gate * up
         return self.w_2(self.dropout(fuse))
+
+# 总结：PositionwiseFeedForward: 一个简单的前馈网络，对每个位置独立处理。
+# MoEFFNLayer: 结合混合专家机制的前馈网络，可以选择不同的专家对输入进行处理，提高模型的灵活性和表达能力。
+# GatedVariantsMLP: 通过门控机制增强特征的选择性，从而提高模型的表现。
+# 这三个模块可以结合使用，构建复杂的神经网络架构，特别是在需要处理序列数据的任务中，如自然语言处理和时间序列预测等。

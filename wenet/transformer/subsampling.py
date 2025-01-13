@@ -21,28 +21,36 @@ import torch
 from wenet.utils.mask import make_pad_mask
 
 
+# 定义了一系列用于处理输入数据的类，主要通过不同的子采样技术来减少输入数据的时间维度。
+# 所有子采样类的基类
 class BaseSubsampling(torch.nn.Module):
 
+    # 初始化
     def __init__(self):
         super().__init__()
         self.right_context = 0
         self.subsampling_rate = 1
 
+    # 用于生成位置编码
     def position_encoding(self, offset: Union[int, torch.Tensor],
                           size: int) -> torch.Tensor:
         return self.pos_enc.position_encoding(offset, size)
 
 
+# 该类用于对输入进行嵌入，不进行子采样。
 class EmbedinigNoSubsampling(BaseSubsampling):
     """Embedding input without subsampling
     """
 
+    # 构造方法中使用 torch.nn.Embedding 创建嵌入层，并保存位置编码类的实例。
     def __init__(self, idim: int, odim: int, dropout_rate: float,
                  pos_enc_class: torch.nn.Module):
         super().__init__()
         self.embed = torch.nn.Embedding(idim, odim)
         self.pos_enc = pos_enc_class
 
+    # 将输入 x 通过嵌入层转换。
+    # 获取位置编码并返回转换后的张量、位置编码和输入掩码。
     def forward(
         self,
         x: torch.Tensor,
@@ -67,6 +75,7 @@ class EmbedinigNoSubsampling(BaseSubsampling):
         return x, pos_emb, x_mask
 
 
+# 该类进行线性变换，同样不进行子采样。
 class LinearNoSubsampling(BaseSubsampling):
     """Linear transform the input without subsampling
 
@@ -77,6 +86,7 @@ class LinearNoSubsampling(BaseSubsampling):
 
     """
 
+    # 使用 torch.nn.Sequential 创建一个线性层，层归一化和丢弃层。
     def __init__(self, idim: int, odim: int, dropout_rate: float,
                  pos_enc_class: torch.nn.Module):
         """Construct an linear object."""
@@ -90,6 +100,7 @@ class LinearNoSubsampling(BaseSubsampling):
         self.right_context = 0
         self.subsampling_rate = 1
 
+    # forward 方法功能类似于 EmbedinigNoSubsampling，将输入通过线性层转换，并返回转换后的张量和掩码。
     def forward(
         self,
         x: torch.Tensor,
@@ -114,6 +125,8 @@ class LinearNoSubsampling(BaseSubsampling):
         return x, pos_emb, x_mask
 
 
+# 该类通过一维卷积实现子采样，输出的长度为原长度的一半。
+# 使用两个卷积层进行特征提取，最后返回经过子采样后的张量和位置编码。
 class Conv1dSubsampling2(BaseSubsampling):
     """Convolutional 1D subsampling (to 1/2 length).
        It is designed for Whisper, ref:
@@ -171,6 +184,8 @@ class Conv1dSubsampling2(BaseSubsampling):
         return x, pos_emb, x_mask[:, :, (time + 1) % 2::2]
 
 
+# 使用两个二维卷积层进行处理，最终返回的时间维度为原始的1/4。
+# 右侧上下文为6。
 class Conv2dSubsampling4(BaseSubsampling):
     """Convolutional 2D subsampling (to 1/4 length).
 
@@ -228,6 +243,9 @@ class Conv2dSubsampling4(BaseSubsampling):
         return x, pos_emb, x_mask[:, :, 2::2][:, :, 2::2]
 
 
+# 这些类都是通过2D卷积实现更高的子采样率（分别为1/4, 1/6, 1/8）
+# 该类具有更复杂的卷积结构（一个3x3和一个5x5卷积），使得时间维度变为1/6。
+# 右侧上下文为10。
 class Conv2dSubsampling6(BaseSubsampling):
     """Convolutional 2D subsampling (to 1/6 length).
     Args:
@@ -280,6 +298,8 @@ class Conv2dSubsampling6(BaseSubsampling):
         return x, pos_emb, x_mask[:, :, 2::2][:, :, 4::3]
 
 
+# 使用三个2D卷积层，进一步缩小时间维度至1/8。
+# 右侧上下文为14。
 class Conv2dSubsampling8(BaseSubsampling):
     """Convolutional 2D subsampling (to 1/8 length).
 
@@ -336,6 +356,7 @@ class Conv2dSubsampling8(BaseSubsampling):
         return x, pos_emb, x_mask[:, :, 2::2][:, :, 2::2][:, :, 2::2]
 
 
+# 实现了堆叠多帧的下采样方法。
 class StackNFramesSubsampling(BaseSubsampling):
 
     def __init__(self,
@@ -392,3 +413,8 @@ class StackNFramesSubsampling(BaseSubsampling):
     def position_encoding(self, offset: Union[int, torch.Tensor],
                           size: int) -> torch.Tensor:
         return self.pos_enc_class.position_encoding(offset, size)
+
+# 总结：
+# 总体来看，这段代码展示了如何使用不同的子采样策略对输入进行处理，以便于模型的计算和表示。
+# 不同的子采样方法会对输入数据的时间维度进行不同程度的压缩，同时保持或增强其特征表示能力。
+# 各类中都涉及到位置编码的使用，以帮助模型捕捉输入序列中位置信息。

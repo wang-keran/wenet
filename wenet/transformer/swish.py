@@ -18,9 +18,14 @@
 import torch
 
 
+# 该类表示 Swish 激活函数。
 class Swish(torch.nn.Module):
     """Construct an Swish object."""
 
+    # 这是一个实现前向传播的方法，接收输入 x，类型为 torch.Tensor，并返回一个 torch.Tensor 作为输出。
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Return Swish activation function."""
+        # 这行代码实现了 Swish 激活函数的核心计算。
         return x * torch.sigmoid(x)
+    
+# 总结：Swish 类定义了一个简单的激活函数，它结合了线性和非线性特性，通过使用 Sigmoid 函数来调节激活的输出。
