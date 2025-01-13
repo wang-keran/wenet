@@ -25,6 +25,7 @@ from wenet.transformer.decoder import TransformerDecoder
 from wenet.utils.common import IGNORE_ID, add_whisper_tokens, th_accuracy
 
 
+# 定义了一个继承自ASRModel类的Whisper类，代表一个基于Transformer架构的自动语音识别（ASR）模型。
 class Whisper(ASRModel):
 
     def __init__(
@@ -48,10 +49,12 @@ class Whisper(ASRModel):
         self.eos = special_tokens["eot"]
         self.decode_maxlen = self.decoder.embed[1].max_len
 
+    # 用于设置时间对齐相关的头信息
     # TODO(xcsong): time align
     def set_alignment_heads(self, dump: bytes):
         raise NotImplementedError
 
+    # 多语言支持 is_multilingual 和 num_languages
     @property
     def is_multilingual(self):
         return self.vocab_size >= 51865
@@ -60,6 +63,7 @@ class Whisper(ASRModel):
     def num_languages(self):
         return self.vocab_size - 51765 - int(self.is_multilingual)
 
+    # 计算注意力损失
     def _calc_att_loss(
         self,
         encoder_out: torch.Tensor,
@@ -91,3 +95,7 @@ class Whisper(ASRModel):
             ignore_label=self.ignore_id,
         )
         return loss_att, acc_att
+
+# 该Whisper类是一个基于Transformer的自动语音识别模型，具有注意力机制和可选的CTC损失。
+# 支持多语言特性，通过特殊标记（SOT、EOT等）实现对目标序列的处理。
+# 提供了计算注意力损失的函数 _calc_att_loss，实现了基于目标序列和解码器输出的损失和准确度的计算。

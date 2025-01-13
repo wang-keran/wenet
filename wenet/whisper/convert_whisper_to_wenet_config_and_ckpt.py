@@ -42,6 +42,7 @@ from whisper.tokenizer import get_tokenizer
 sys.path.insert(0, _cpath_)
 
 
+# 该函数将Whisper模型的配置参数转换为WeNet格式的YAML配置文件。
 def convert_to_wenet_yaml(tokenizer, dims, wenet_yaml_path: str):
     configs = {}
     configs['input_dim'] = dims['n_mels']
@@ -188,6 +189,7 @@ def convert_to_wenet_yaml(tokenizer, dims, wenet_yaml_path: str):
     print(configs)
 
 
+# 该函数将Whisper模型的权重文件转换为WeNet格式的权重文件。
 def convert_to_wenet_state_dict(whisper_state_dict, wenet_state_dict_path):
     wenet_state_dict = {}
     unused = []
@@ -242,6 +244,7 @@ def convert_to_wenet_state_dict(whisper_state_dict, wenet_state_dict_path):
     )
 
 
+# 生成WeNet格式的单位文件units.txt。
 def convert_to_wenet_units(tokenizer, units_txt_path):
     """ NOTE(xcsong):
         The "units.txt" file is solely for adapting to the training API of Wenet
@@ -261,6 +264,7 @@ def convert_to_wenet_units(tokenizer, units_txt_path):
             f.flush()
 
 
+# get_args函数用于解析命令行参数，例如指定输入的Whisper模型检查点和输出文件目录。
 def get_args():
     parser = argparse.ArgumentParser(description='load and parse whisper')
     # yapf: disable
@@ -278,6 +282,7 @@ def get_args():
     return args
 
 
+# main函数加载Whisper模型的检查点文件，并调用前述的三个转换函数，将模型的状态字典、单位文件和YAML配置文件转换为WeNet兼容的格式。
 def main():
     args = get_args()
     checkpoint = torch.load(args.whisper_ckpt, map_location="cpu")
@@ -298,3 +303,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
+# 总结：该代码实现了OpenAI Whisper模型到WeNet框架的完整转换流程
