@@ -21,8 +21,6 @@ from wenet.k2.model import K2Model
 from wenet.paraformer.cif import Cif
 from wenet.paraformer.layers import SanmDecoder, SanmEncoder
 from wenet.paraformer.paraformer import Paraformer, Predictor
-from wenet.LLM.causallm_model import CausalLM
-from wenet.LLM.decoder import DecoderOnly
 from wenet.ssl.init_model import WENET_SSL_MODEL_CLASS
 from wenet.transducer.joint import TransducerJoint
 from wenet.transducer.predictor import (ConvPredictor, EmbeddingPredictor,
@@ -43,11 +41,6 @@ from wenet.whisper.whisper import Whisper
 from wenet.utils.cmvn import load_cmvn
 from wenet.utils.checkpoint import load_checkpoint, load_trained_modules
 
-
-# 这段代码主要用于初始化 WeNet 语音识别模型的组件，依赖于不同的编码器、解码器、CTC（Connectionist Temporal Classification），以及其他模块，并根据用户提供的配置文件 (configs) 创建模型实例。
-
-# 这些字典将字符串（如 "transformer"、"conformer", 等）映射到具体的类（如 TransformerEncoder、ConformerEncoder 等）。
-# 不同的模块类型（编码器、解码器、CTC 等）有不同的可选实现。这样，通过键值对的方式可以灵活地根据配置选择不同的模型组件。
 WENET_ENCODER_CLASSES = {
     "transformer": TransformerEncoder,
     "conformer": ConformerEncoder,
@@ -89,7 +82,6 @@ WENET_MODEL_CLASSES = {
     "k2_model": K2Model,
     "transducer": Transducer,
     'paraformer': Paraformer,
-    'causal_llm': CausalLM,
 }
 
 
@@ -196,23 +188,6 @@ def init_speech_model(args, configs):
     return model, configs
 
 
-# 初始化一个因果语言模型
-def init_causal_llm(configs):
-    vocab_size = configs['output_dim']
-    assert configs['decoder'] == 'decoder_only'
-    assert configs['model'] == 'causal_lm'
-    decoder_only = DecoderOnly(**configs['decoder_conf'])
-
-    model = CausalLM(
-        vocab_size,
-        decoder_only,
-        **configs['model_conf'],
-        special_tokens=configs.get('tokenizer_conf',
-                                   {}).get('special_tokens', None),
-    )
-    return model, configs
-
-
 # 函数 init_model 根据配置初始化模型，并进行一些额外的设置，如加载检查点、注入 LoRA、绑定权重等。
 def init_model(args, configs):
 
@@ -220,12 +195,7 @@ def init_model(args, configs):
     model_type = configs.get('model', 'asr_model')
     # 将模型类型写回配置。
     configs['model'] = model_type
-    # 如果模型类型是 'causal_lm'，调用 init_causal_llm。
-    if model_type == 'causal_lm':
-        model, configs = init_causal_llm(configs)
-    # 否则，调用 init_speech_model。
-    else:
-        model, configs = init_speech_model(args, configs)
+    model, configs = init_speech_model(args, configs)
 
     # 如果参数中指定了使用 LoRA，则调用 inject_lora_to_model 函数将 LoRA 注入到模型中。
     if hasattr(args, 'use_lora') and args.use_lora:
@@ -249,15 +219,15 @@ def init_model(args, configs):
         if hasattr(args, 'lora_ckpt_path') and args.lora_ckpt_path:
             load_checkpoint(model, args.lora_ckpt_path)
 
-    # 打印配置
-    print(configs)
     # Trye to tie some weights
     # 如果模型具有 tie_or_clone_weights 方法，则调用该方法绑定或克隆权重。
     if hasattr(model, 'tie_or_clone_weights'):
         # 如果参数中未指定 jit，则将其设置为 True。
         if not hasattr(args, 'jit'):
-            args.jit = True  # i.e. export onnx/jit/ipex
-        model.tie_or_clone_weights(args.jit)
+            jit = True  # i.e. export onnx/jit/ipex
+        else:
+            jit = False
+        model.tie_or_clone_weights(jit)
 
     # 仅优化 LoRA：如果参数中指定了仅优化 LoRA，则调用 mark_only_lora_as_trainable 函数将模型中仅 LoRA 部分设置为可训练。
     if hasattr(args, 'only_optimize_lora') and args.only_optimize_lora:

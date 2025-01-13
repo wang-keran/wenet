@@ -273,7 +273,17 @@ class ASRModel(torch.nn.Module):
             )  # (B, maxlen, encoder_dim)
         return encoder_out, encoder_mask
 
-    # 计算基于 CTC（连接时序分类，Connectionist Temporal Classification）模型的对数概率。
+    # The same interface just like whisper
+    # see https://github.com/openai/whisper/blob/main/whisper/model.py#L287
+    def embed_audio(
+        self,
+        mel: torch.Tensor,
+        mel_len: torch.Tensor,
+        chunk_size: int = -1,
+    ) -> [torch.Tensor, torch.Tensor]:
+        encoder_out, encoder_mask = self.encoder(mel, mel_len, chunk_size)
+        return encoder_out, encoder_mask
+
     @torch.jit.unused
     def ctc_logprobs(self,
                      encoder_out: torch.Tensor,
