@@ -51,6 +51,7 @@ from wenet.utils.common import TORCH_NPU_AVAILABLE
 from wenet.utils.init_dataset import init_dataset
 
 
+# 这段代码定义了一个用于命令行参数解析的函数 add_model_args，其作用是为一个深度学习模型的训练和推理过程提供多种可配置选项。
 def add_model_args(parser):
     parser.add_argument('--config', required=True, help='config file')
     parser.add_argument('--model_dir', required=True, help='save model dir')
@@ -81,6 +82,7 @@ def add_model_args(parser):
     return parser
 
 
+# 定义了一个函数 add_trace_args，用于向命令行参数解析器 parser 中添加与模型跟踪（trace）相关的命令行选项
 def add_trace_args(parser):
     parser.add_argument('--jit',
                         action='store_true',
@@ -93,6 +95,7 @@ def add_trace_args(parser):
     return parser
 
 
+# 这段代码定义了一个函数 add_dataset_args，用于向命令行参数解析器 parser 中添加与数据集相关的命令行选项。
 def add_dataset_args(parser):
     parser.add_argument('--data_type',
                         default='raw',
@@ -115,6 +118,8 @@ def add_dataset_args(parser):
     return parser
 
 
+# 该函数用于配置 LoRA（Low-Rank Adaptation）微调的参数。
+# 通过向解析器添加命令行参数，启用和配置 LoRA 微调功能。
 def add_lora_args(parser):
     '''Configure parameters for LoRA fine-tuning. Set use_lora and
        only_optimize_lora to true to enable LoRA functionality.
@@ -176,6 +181,7 @@ def add_lora_args(parser):
     return parser
 
 
+# 用于向命令行参数解析器 parser 中添加与分布式训练（Distributed Data Parallel，DDP）相关的命令行选项
 def add_ddp_args(parser):
     parser.add_argument('--ddp.dist_backend',
                         dest='dist_backend',
@@ -193,6 +199,7 @@ def add_ddp_args(parser):
     return parser
 
 
+# 用于向命令行参数解析器 parser 中添加与 DeepSpeed 相关的命令行选项。
 def add_deepspeed_args(parser):
     parser.add_argument('--timeout',
                         default=30,
@@ -213,6 +220,8 @@ def add_deepspeed_args(parser):
     return parser
 
 
+# 函数 add_fsdp_args 用于配置 FSDP 的参数。
+# 通过向解析器添加命令行参数，启用和配置 FSDP 功能，包括数据类型、是否将参数卸载到 CPU、同步模块状态以及分片策略。
 def add_fsdp_args(parser):
     parser.add_argument(
         '--dtype',
@@ -248,6 +257,7 @@ def add_fsdp_args(parser):
     return parser
 
 
+# 用于初始化分布式训练环境。
 def init_distributed(args):
     world_size = int(os.environ.get('WORLD_SIZE', 1))
     local_rank = int(os.environ.get('LOCAL_RANK', 0))
@@ -269,6 +279,7 @@ def init_distributed(args):
     return world_size, local_rank, rank
 
 
+# 这段代码定义了一个函数 check_modify_and_save_config(args, configs, symbol_table)，用于检查、修改配置并保存最终的训练配置。
 def check_modify_and_save_config(args, configs, symbol_table):
     if args.train_engine in ["torch_ddp", "torch_fsdp"]:
         if args.use_amp:
@@ -362,6 +373,7 @@ def check_modify_and_save_config(args, configs, symbol_table):
     return configs
 
 
+# 负责初始化数据集和数据加载器。
 def init_dataset_and_dataloader(args, configs, tokenizer, seed=777):
     generator = torch.Generator()
     generator.manual_seed(seed)
@@ -406,6 +418,7 @@ def init_dataset_and_dataloader(args, configs, tokenizer, seed=777):
     return train_dataset, cv_dataset, train_data_loader, cv_data_loader
 
 
+# 负责根据训练引擎的不同配置模型并将其移动到 GPU 上
 def wrap_cuda_model(args, model, configs=None):
     local_world_size = int(os.environ.get('LOCAL_WORLD_SIZE', 1))
     world_size = int(os.environ.get('WORLD_SIZE', 1))
@@ -487,6 +500,7 @@ def wrap_cuda_model(args, model, configs=None):
     return model, device
 
 
+# 用于初始化优化器和学习率调度器。
 def init_optimizer_and_scheduler(args, configs, model):
     groups = []
     lr = configs['optim_conf'].get('lr')
@@ -564,6 +578,7 @@ def init_optimizer_and_scheduler(args, configs, model):
     return model, optimizer, scheduler
 
 
+# 用于跟踪（trace）模型并打印模型的结构和参数数量。
 def trace_and_print_model(args, model):
     # !!!IMPORTANT!!!
     # Try to export the model by script, if fails, we should refine
@@ -578,6 +593,9 @@ def trace_and_print_model(args, model):
             print('the number of model params: {:,d}'.format(num_params))
 
 
+# 在主进程中创建模型存储目录和 TensorBoard 记录目录。
+# 使用 TensorBoard 的 SummaryWriter 记录训练过程的指标和可视化信息。
+# 由于只有主进程进行记录，避免了在多进程环境中重复写入同一日志的情况。
 def init_summarywriter(args):
     writer = None
     if int(os.environ.get('RANK', 0)) == 0:
@@ -587,6 +605,9 @@ def init_summarywriter(args):
     return writer
 
 
+# 函数 init_scaler 用于初始化梯度缩放器，支持 AMP 和 FSDP 训练。
+# 根据设备类型和训练引擎，选择合适的梯度缩放器实现。
+# 最终返回初始化的梯度缩放器。
 def init_scaler(args):
     scaler = None
     if args.use_amp:
@@ -604,6 +625,7 @@ def init_scaler(args):
     return scaler
 
 
+# 责保存训练模型及其相关信息
 def save_model(model, info_dict):
     rank = int(os.environ.get('RANK', 0))
     tag = info_dict["tag"]
@@ -636,6 +658,7 @@ def save_model(model, info_dict):
             fout.write(data)
 
 
+# # 主要用于在分布式训练中同步不同进程的操作，确保工作负载的均匀分配。
 def wenet_join(group_join, info_dict):
     world_size = int(os.environ.get('WORLD_SIZE', 1))
     local_rank = int(os.environ.get('LOCAL_RANK', 0))
@@ -665,6 +688,7 @@ def wenet_join(group_join, info_dict):
     return False
 
 
+# 这段代码定义了一个名为 batch_forward 的函数，用于在训练过程中对一批数据进行前向传播。
 def batch_forward(model, batch, scaler, info_dict, device):
     train_engine = info_dict.get('train_engine', "torch_ddp")
     accum_grad = info_dict.get('accum_grad', 1)
@@ -701,6 +725,7 @@ def batch_forward(model, batch, scaler, info_dict, device):
     return info_dict
 
 
+# 用于在训练过程中对损失进行反向传播
 def batch_backward(model, scaler, info_dict):
     train_engine = info_dict.get("train_engine", "torch_ddp")
     accum_grad = info_dict.get('accum_grad', 1)
@@ -733,6 +758,7 @@ def batch_backward(model, scaler, info_dict):
     return info_dict
 
 
+# 在训练过程中更新模型的参数和学习率，并计算梯度范数。
 def update_parameter_and_lr(model, optimizer, scheduler, scaler, info_dict):
     rank = int(os.environ.get('RANK', 0))
     train_engine = info_dict.get("train_engine", "torch_ddp")
@@ -793,6 +819,7 @@ def update_parameter_and_lr(model, optimizer, scheduler, scaler, info_dict):
     return info_dict
 
 
+# 目的是在训练过程中记录各种训练指标，并将其写入日志系统或可视化工具（如 TensorBoard）。
 def log_per_step(writer, info_dict, timer: Optional[StepTimer] = None):
     tag = info_dict["tag"]
     step = info_dict["step"]
@@ -857,6 +884,7 @@ def log_per_step(writer, info_dict, timer: Optional[StepTimer] = None):
         logging.debug(log_str)
 
 
+# 用于在每个训练周期结束时记录相关指标，并将这些指标写入 TensorBoard 或其他日志系统。
 def log_per_epoch(writer, info_dict):
     epoch = info_dict["epoch"]
     loss_dict = info_dict["loss_dict"]
@@ -876,6 +904,7 @@ def log_per_epoch(writer, info_dict):
                               epoch)
 
 
+# 用于在深度学习模型中冻结特定的模块，以防止其参数在训练过程中更新。
 def freeze_modules(model, args):
     for name, param in model.named_parameters():
         for module_name in args.freeze_modules:

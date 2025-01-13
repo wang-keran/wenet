@@ -27,6 +27,8 @@ WHISPER_LANGS = tuple(WhiserLanguages.keys())
 IGNORE_ID = -1
 
 
+# 这段代码包含了多种处理张量和计算的函数，主要用于处理深度学习中的输入数据和输出结果，特别是在序列模型（如转导模型）中。
+# 功能：对一系列张量进行填充，以形成一个统一大小的张量。
 def pad_list(xs: List[torch.Tensor], pad_value: int):
     """Perform padding for the list of tensors.
 
@@ -76,6 +78,7 @@ def pad_list(xs: List[torch.Tensor], pad_value: int):
     return pad_res
 
 
+# 功能：在转导预测器的输入序列前添加一个空白（blank）标记。
 def add_blank(ys_pad: torch.Tensor, blank: int,
               ignore_id: int) -> torch.Tensor:
     """ Prepad blank for transducer predictor
@@ -110,6 +113,7 @@ def add_blank(ys_pad: torch.Tensor, blank: int,
     return torch.where(out == ignore_id, blank, out)
 
 
+# 功能：在目标序列的前后添加开始（sos）和结束（eos）标记。
 def add_sos_eos(ys_pad: torch.Tensor, sos: int, eos: int,
                 ignore_id: int) -> Tuple[torch.Tensor, torch.Tensor]:
     """Add <sos> and <eos> labels.
@@ -156,6 +160,7 @@ def add_sos_eos(ys_pad: torch.Tensor, sos: int, eos: int,
     return pad_list(ys_in, eos), pad_list(ys_out, ignore_id)
 
 
+# 功能：在序列中添加特殊的 Whisper 令牌。
 def add_whisper_tokens(special_tokens, ys_pad: torch.Tensor, ignore_id: int,
                        tasks: List[str], no_timestamp: bool, langs: List[str],
                        use_prev: bool) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -238,6 +243,7 @@ def add_whisper_tokens(special_tokens, ys_pad: torch.Tensor, ignore_id: int,
     return pad_list(ys_in, special_tokens["eot"]), pad_list(ys_out, ignore_id)
 
 
+# 功能：反向填充序列张量，主要用于翻转填充的序列。
 def reverse_pad_list(ys_pad: torch.Tensor,
                      ys_lens: torch.Tensor,
                      pad_value: float = -1.0) -> torch.Tensor:
@@ -266,6 +272,7 @@ def reverse_pad_list(ys_pad: torch.Tensor,
     return r_ys_pad
 
 
+# 功能：计算模型预测的准确率。
 def th_accuracy(pad_outputs: torch.Tensor, pad_targets: torch.Tensor,
                 ignore_label: int) -> torch.Tensor:
     """Calculate accuracy.
@@ -288,6 +295,7 @@ def th_accuracy(pad_outputs: torch.Tensor, pad_targets: torch.Tensor,
     return (numerator / denominator).detach()
 
 
+# 功能：根据配置获取下采样的因子。
 def get_subsample(config):
     input_layer = config["encoder_conf"]["input_layer"]
     assert input_layer in ["conv2d", "conv2d6", "conv2d8"]
@@ -299,6 +307,7 @@ def get_subsample(config):
         return 8
 
 
+# 功能：进行数值稳定的对数求和。
 def log_add(*args) -> float:
     """
     Stable log add
@@ -310,6 +319,7 @@ def log_add(*args) -> float:
     return a_max + lsp
 
 
+# 功能：将布尔掩码转换为偏置。
 def mask_to_bias(mask: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
     assert mask.dtype == torch.bool
     assert dtype in [torch.float32, torch.bfloat16, torch.float16]
@@ -321,6 +331,7 @@ def mask_to_bias(mask: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
     return mask
 
 
+# 函数 get_nested_attribute 用于获取对象的嵌套属性值。
 def get_nested_attribute(obj, attr_path):
     if isinstance(obj, torch.nn.parallel.DistributedDataParallel):
         obj = obj.module
@@ -330,20 +341,25 @@ def get_nested_attribute(obj, attr_path):
     return obj
 
 
+# 将学习率列表转换为字符串表示
 def lrs_to_str(lrs: List):
     return " ".join(["{:.4e}".format(lr) for lr in lrs])
 
 
+# 测量每秒的步数
 class StepTimer:
     """Utility class for measuring steps/second."""
 
+    # 初始化
     def __init__(self, step=0.0):
         self.last_iteration = step
         self.start()
 
+    # 记录当前开始时间
     def start(self):
         self.last_time = time.time()
 
+    # 计算每秒的步数
     def steps_per_second(self, cur_step, restart=True):
         value = ((float(cur_step) - self.last_iteration) /
                  (time.time() - self.last_time))
@@ -353,12 +369,14 @@ class StepTimer:
         return value
 
 
+# 将 PyTorch 张量转换为对应的标量值。
 def tensor_to_scalar(x):
     if torch.is_tensor(x):
         return x.item()
     return x
 
 
+# 判断torch_npu模块是否可用，：torch_npu是一个 PyTorch 的 NPU 适配器
 def is_torch_npu_available() -> bool:
     '''
         check if torch_npu is available.
@@ -374,4 +392,8 @@ def is_torch_npu_available() -> bool:
     return False
 
 
+# 将torch_npu是否可用的结果存到全局变量中方便以后使用
 TORCH_NPU_AVAILABLE = is_torch_npu_available()
+
+# 总结：这段代码主要围绕着张量的填充、特殊标记的添加和模型预测的准确率计算等功能展开。
+# 它为序列建模（如转导模型）提供了基本的操作函数，方便后续模型的训练和推理过程。

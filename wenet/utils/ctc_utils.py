@@ -20,6 +20,9 @@ import torch
 import torchaudio.functional as F
 
 
+# 实现了一些处理 CTC（Connectionist Temporal Classification）模型输出的功能，包括去除重复元素、生成时间戳、强制对齐等
+
+# 去除输入序列中的重复元素和空白元素。
 def remove_duplicates_and_blank(hyp: List[int],
                                 blank_id: int = 0) -> List[int]:
     new_hyp: List[int] = []
@@ -33,6 +36,7 @@ def remove_duplicates_and_blank(hyp: List[int],
     return new_hyp
 
 
+# 将重复元素替换为一个空白元素。
 def replace_duplicates_with_blank(hyp: List[int],
                                   blank_id: int = 0) -> List[int]:
     new_hyp: List[int] = []
@@ -48,6 +52,7 @@ def replace_duplicates_with_blank(hyp: List[int],
     return new_hyp
 
 
+# 生成 CTC 解码过程中非空白符号的时间点。
 def gen_ctc_peak_time(hyp: List[int], blank_id: int = 0) -> List[int]:
     times = []
     cur = 0
@@ -60,6 +65,7 @@ def gen_ctc_peak_time(hyp: List[int], blank_id: int = 0) -> List[int]:
     return times
 
 
+# 生成 CTC 输出中非空白元素的时间戳。
 def gen_timestamps_from_peak(
     peaks: List[int],
     max_duration: float,
@@ -93,6 +99,7 @@ def gen_timestamps_from_peak(
     return times
 
 
+# 在每两个标签 token 之间插入空白 token。
 def insert_blank(label, blank_id=0):
     """Insert blank token between every two label token."""
     label = np.expand_dims(label, 1)
@@ -103,6 +110,7 @@ def insert_blank(label, blank_id=0):
     return label
 
 
+# 实现 CTC 强制对齐。
 def force_align(ctc_probs: torch.Tensor, y: torch.Tensor, blank_id=0) -> list:
     """ctc forced alignment.
 
@@ -119,6 +127,10 @@ def force_align(ctc_probs: torch.Tensor, y: torch.Tensor, blank_id=0) -> list:
     return alignments[0]
 
 
+# 从配置和符号表中获取空白 ID。
+# 该函数的目的是从符号表中提取 <blank> 对应的 ID 并确保配置中正确保存了 ctc_blank_id，
+# 如果符号表中没有 <blank>，则依赖 configs['ctc_conf']['ctc_blank_id'] 中的预设值。
+# 如果符号表和配置中都有 <blank>，它们的值必须保持一致，否则程序会抛出异常。
 def get_blank_id(configs, symbol_table):
     if 'ctc_conf' not in configs:
         configs['ctc_conf'] = {}
@@ -134,3 +146,5 @@ def get_blank_id(configs, symbol_table):
             'ctc_conf'], "PLZ set ctc_blank_id in yaml"
 
     return configs, configs['ctc_conf']['ctc_blank_id']
+
+# 总结：实现了一些处理 CTC（Connectionist Temporal Classification）模型输出的功能，包括去除重复元素、生成时间戳、强制对齐等

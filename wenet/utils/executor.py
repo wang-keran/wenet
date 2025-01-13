@@ -28,8 +28,10 @@ from wenet.utils.train_utils import (wenet_join, batch_forward, batch_backward,
                                      save_model)
 
 
+# 这段代码定义了一个名为 Executor 的类，负责管理模型的训练过程以及交叉验证。
 class Executor:
 
+    # 初始化方法，设置 step 属性为 0，用于记录训练的步骤数。
     def __init__(self,
                  global_step: int = 0,
                  device: torch.device = torch.device("cpu")):
@@ -38,6 +40,7 @@ class Executor:
         self.cv_step_timer = None
         self.device = device
 
+    # 训练模型一个 epoch。
     def train(self, model, optimizer, scheduler, train_data_loader,
               cv_data_loader, writer, configs, scaler, group_join):
         ''' Train one epoch
@@ -117,6 +120,7 @@ class Executor:
                 self.step += 1 if (batch_idx +
                                    1) % info_dict["accum_grad"] == 0 else 0
 
+    # 执行交叉验证。
     def cv(self, model, cv_data_loader, configs):
         ''' Cross validation on
         '''
@@ -159,3 +163,6 @@ class Executor:
             loss_dict[loss_name] = loss_dict[loss_name] / num_seen_utts
         loss_dict["acc"] = sum(total_acc) / len(total_acc)
         return loss_dict
+
+# 这个 Executor 类封装了训练和交叉验证的逻辑，提供了详细的训练步骤和损失记录机制。
+# 通过使用上下文管理器，代码有效地管理了分布式训练中的梯度同步。

@@ -49,6 +49,7 @@ def subsequent_mask(
 '''
 
 
+# 创建一个用于自回归模式的掩码矩阵，确保当前步骤只能关注其左侧的步骤。
 def subsequent_mask(
         size: int,
         device: torch.device = torch.device("cpu"),
@@ -85,6 +86,7 @@ def subsequent_mask(
     return mask
 
 
+# 创建一个用于流式编码器的掩码矩阵，支持基于块的注意力机制。
 def subsequent_chunk_mask(
         size: int,
         chunk_size: int,
@@ -123,6 +125,7 @@ def subsequent_chunk_mask(
     return ret
 
 
+# 为编码器应用可选的块掩码，支持动态和静态块大小。
 def add_optional_chunk_mask(xs: torch.Tensor,
                             masks: torch.Tensor,
                             use_dynamic_chunk: bool,
@@ -198,6 +201,7 @@ def add_optional_chunk_mask(xs: torch.Tensor,
     return chunk_masks
 
 
+# 创建一个掩码张量，包含填充部分的索引。
 def make_pad_mask(lengths: torch.Tensor, max_len: int = 0) -> torch.Tensor:
     """Make mask tensor containing indices of padded part.
 
@@ -227,6 +231,7 @@ def make_pad_mask(lengths: torch.Tensor, max_len: int = 0) -> torch.Tensor:
     return mask
 
 
+# 创建一个掩码张量，包含非填充部分的索引。
 def make_non_pad_mask(lengths: torch.Tensor) -> torch.Tensor:
     """Make mask tensor containing indices of non-padded part.
 
@@ -255,6 +260,7 @@ def make_non_pad_mask(lengths: torch.Tensor) -> torch.Tensor:
     return ~make_pad_mask(lengths)
 
 
+# 如果序列已完成，只允许一个分支存活，其他分支得分为负无穷。
 def mask_finished_scores(score: torch.Tensor,
                          flag: torch.Tensor) -> torch.Tensor:
     """
@@ -285,6 +291,7 @@ def mask_finished_scores(score: torch.Tensor,
     return score
 
 
+# 如果序列已完成，所有分支应为 <eos>。
 def mask_finished_preds(pred: torch.Tensor, flag: torch.Tensor,
                         eos: int) -> torch.Tensor:
     """
@@ -304,6 +311,7 @@ def mask_finished_preds(pred: torch.Tensor, flag: torch.Tensor,
     return pred.masked_fill_(finished, eos)
 
 
+# 创建一个包含历史或未来或两者的掩码，用于因果或非因果流式编码器。
 def causal_or_lookahead_mask(
     mask: torch.Tensor,
     right_context: int,
@@ -371,3 +379,6 @@ def causal_or_lookahead_mask(
     lt = (indices_expand < end)
 
     return (gt & lt) * mask.transpose(1, 2) * mask
+
+# 该文件定义了多种掩码生成函数，用于不同的注意力机制和编码器/解码器模式。
+# 这些掩码函数在处理序列数据时非常有用，特别是在自回归模型和流式模型中。

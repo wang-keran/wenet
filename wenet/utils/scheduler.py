@@ -23,6 +23,7 @@ import torch
 from torch.optim.lr_scheduler import _LRScheduler
 
 
+# # WarmupLR 是一种学习率调度器，在模型训练的早期阶段使用预热策略。预热阶段的学习率从较小值逐渐增加到最大学习率，之后开始衰减。
 class WarmupLR(_LRScheduler):
     """The WarmupLR scheduler
 
@@ -76,6 +77,7 @@ class WarmupLR(_LRScheduler):
         self.last_epoch = step
 
 
+# 该类允许为任何学习率策略添加预热逻辑。它根据指定的预热步数或预热比例，控制在训练的最初几个步骤中增加学习率。
 class WarmupPolicy(_LRScheduler):
     """Adds warmup kwargs and warmup logic to lr policy.
     All arguments should be passed as kwargs for clarity,
@@ -139,6 +141,7 @@ class WarmupPolicy(_LRScheduler):
         return self.base_lrs
 
 
+# 这个类在训练的最初部分应用了平方根学习率增长策略，随后保持学习率不变。
 class SquareRootConstantPolicy(_LRScheduler):
     """Adds warmup kwargs and warmup logic to lr policy.
     All arguments should be passed as kwargs for clarity,
@@ -200,6 +203,7 @@ class SquareRootConstantPolicy(_LRScheduler):
         return self.base_lrs
 
 
+# 此类在预热之后，会在指定的步骤内保持学习率不变，然后开始衰减。
 class WarmupHoldPolicy(WarmupPolicy):
     """Variant of WarmupPolicy which maintains high
        learning rate for a defined number of steps.
@@ -284,6 +288,7 @@ class WarmupHoldPolicy(WarmupPolicy):
         return self._get_lr(step)
 
 
+# WarmupAnnealHoldPolicy 添加了预热和线性衰减的策略，同时还支持在预热后保持学习率恒定。
 class WarmupAnnealHoldPolicy(_LRScheduler):
     """Adds warmup kwargs and warmup logic to lr policy.
     All arguments should be passed as kwargs for clarity,
@@ -446,6 +451,7 @@ def _noam_hold_annealing(initial_lr, step, warmup_steps, hold_steps,
     return lr
 
 
+# 这个类使用平方衰减策略，即根据训练步数的平方或平方根来调整学习率。
 class SquareAnnealing(WarmupPolicy):
 
     def __init__(self,
@@ -473,6 +479,7 @@ class SquareAnnealing(WarmupPolicy):
         return new_lrs
 
 
+# 这个类使用平方根衰减策略，即根据训练步数的平方或平方根来调整学习率。
 class SquareRootAnnealing(WarmupPolicy):
 
     def __init__(self,
@@ -499,6 +506,7 @@ class SquareRootAnnealing(WarmupPolicy):
         return new_lrs
 
 
+# 使用余弦退火策略，在预热结束后，学习率根据余弦曲线逐渐下降。
 class CosineAnnealing(WarmupAnnealHoldPolicy):
 
     def __init__(self,
@@ -560,6 +568,7 @@ class CosineAnnealing(WarmupAnnealHoldPolicy):
         return new_lrs
 
 
+# NoamAnnealing 使用了 Noam 退火策略，常用于 Transformer 模型。该策略在训练开始时逐渐提高学习率，达到顶峰后，再按指数形式下降。
 class NoamAnnealing(_LRScheduler):
 
     def __init__(self,
@@ -626,6 +635,8 @@ class NoamAnnealing(_LRScheduler):
         return out_lr
 
 
+# 该类结合了 Noam 和保持策略，先线性增加学习率，保持顶峰一段时间，然后逐步衰减。
+# 各种退火函数：这些调度策略通过调整学习率，帮助模型在不同的训练阶段更好地收敛，避免过拟合或收敛过快。
 class NoamHoldAnnealing(WarmupHoldPolicy):
 
     def __init__(self,
@@ -720,3 +731,5 @@ class NoamHoldAnnealing(WarmupHoldPolicy):
 
     def set_step(self, step: int):
         self.last_epoch = step
+
+# 总结：学习率调度策略相关的类

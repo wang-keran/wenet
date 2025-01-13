@@ -21,6 +21,7 @@ from typing import Dict, List, Tuple
 from collections import deque
 
 
+# 该函数用于从给定的上下文列表路径读取文本，进行分词并将其转换为 token ID。
 def tokenize(context_list_path, symbol_table, bpe_model=None):
     """ Read biasing list from the biasing list address, tokenize and convert it
         into token id
@@ -57,6 +58,7 @@ def tokenize(context_list_path, symbol_table, bpe_model=None):
     return context_list
 
 
+# 表示上下文图中的一个状态。
 class ContextState:
     """The state in ContextGraph"""
 
@@ -100,6 +102,7 @@ class ContextState:
         self.output = None
 
 
+# 上下文图是基于 Aho-Corasick 算法的 Trie 树，包含一些词/短语，以期在解码过程中提升它们的分数。
 class ContextGraph:
     """The ContextGraph is modified from Aho-Corasick which is mainly
     a Trie with a fail arc for each node.
@@ -141,6 +144,7 @@ class ContextGraph:
         self.root.fail = self.root
         self.build_graph(self.context_list)
 
+    # 从 token 列表构建上下文图，首先构建 Trie，然后为每个 Trie 节点填充失败弧（fail arc）。
     def build_graph(self, token_ids: List[List[int]]):
         """Build the ContextGraph from a list of token list.
         It first build a trie from the given token lists, then fill the fail arc
@@ -173,6 +177,7 @@ class ContextGraph:
                 node = node.next[token]
         self._fill_fail_output()  # AC
 
+    # 为每个 Trie 节点填充失败弧，可以通过广度优先搜索实现。
     def _fill_fail_output(self):
         """This function fills the fail arc for each trie node, it can be computed
         in linear time by performing a breadth-first search starting from the root.
@@ -209,6 +214,7 @@ class ContextGraph:
                 node.output_score += 0 if output is None else output.output_score
                 queue.append(node)
 
+    # 根据给定状态和 token 在上下文图中进行搜索。
     def forward_one_step(self, state: ContextState,
                          token: int) -> Tuple[float, ContextState]:
         """Search the graph with given state and token.
@@ -246,6 +252,7 @@ class ContextGraph:
         assert node is not None
         return (score + node.output_score, node)
 
+    # 在解码序列结束时，确定匹配的分数。
     def finalize(self, state: ContextState) -> Tuple[float, ContextState]:
         """When reaching the end of the decoded sequence, we need to finalize
         the matching, the purpose is to subtract the added bonus score for the
@@ -263,3 +270,6 @@ class ContextGraph:
         # The score of the fail arc
         score = -state.node_score
         return (score, self.root)
+
+# 这段代码实现了一个上下文图，通过构建 Trie 和填充失败弧来提高特定短语在解码过程中的匹配概率。
+# 通过 tokenization、状态管理和图结构的有效实现，为序列解码中的上下文增强提供了支持。

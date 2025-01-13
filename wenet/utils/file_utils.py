@@ -15,6 +15,7 @@
 import re
 
 
+# 读取指定文件中的每一行，并返回一个字符串列表。
 def read_lists(list_file):
     lists = []
     with open(list_file, 'r', encoding='utf8') as fin:
@@ -23,6 +24,7 @@ def read_lists(list_file):
     return lists
 
 
+# 从指定文件中读取非语言符号，验证符号格式。
 def read_non_lang_symbols(non_lang_sym_path):
     """read non-linguistic symbol from file.
 
@@ -58,6 +60,7 @@ def read_non_lang_symbols(non_lang_sym_path):
         return syms
 
 
+# 读取符号表文件，并返回一个符号到 ID 的映射字典。
 def read_symbol_table(symbol_table_file):
     symbol_table = {}
     with open(symbol_table_file, 'r', encoding='utf8') as fin:
@@ -66,3 +69,6 @@ def read_symbol_table(symbol_table_file):
             assert len(arr) == 2
             symbol_table[arr[0]] = int(arr[1])
     return symbol_table
+
+# 总结：这段代码包含三个功能模块，分别用于读取列表、验证非语言符号格式以及读取符号表。
+# read_non_lang_symbols 函数使用正则表达式确保符号格式的正确性，增强了代码的鲁棒性。

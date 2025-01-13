@@ -17,6 +17,7 @@ from wenet.transformer.decoder_layer import DecoderLayer
 from wenet.utils.checkpoint import save_state_dict_and_infos
 from wenet.utils.init_model import WENET_DECODER_CLASSES, WENET_ENCODER_CLASSES
 
+# 定义编码器和解码器层类字典
 WENET_ENCODER_LAYERS_CLASSES = {
     'transformer_encoder_layer': TransformerEncoderLayer,
     'conformer_encoder_layer': ConformerEncoderLayer,
@@ -36,6 +37,7 @@ WENET_DECODER_LAYERS_CLASSES = {
 }
 
 
+# 定义 FSDP 包装策略
 def wenet_fsdp_wrap_policy(mode):
     # different wrap methods
     # please refer： https://openmmlab.medium.com/its-2023-is-pytorch-s-fsdp-the-best-choice-for-training-large-models-fe8d2848832f # noqa
@@ -63,10 +65,12 @@ def wenet_fsdp_wrap_policy(mode):
             return layers_wrap_policy
 
 
+# 定义全状态字典保存策略
 fullstate_save_policy = FullStateDictConfig(offload_to_cpu=True,
                                             rank0_only=True)
 
 
+# 定义模型保存函数
 def fsdp_save_model(model, save_model_path, info_dict):
     # TODO(Mddct); When the model is large, saving a model will take a long time.
     # We only need to keep the sharding in an asynchronous manner, but it is
@@ -80,6 +84,7 @@ def fsdp_save_model(model, save_model_path, info_dict):
             save_state_dict_and_infos(state_dict, save_model_path, info_dict)
 
 
+# 检查梯度检查点
 def check_gradient_checkpoint(model):
     ckpt_laye_types = []
     if hasattr(model, 'encoder') and hasattr(model.encoder,
@@ -97,6 +102,7 @@ def check_gradient_checkpoint(model):
     return tuple(ckpt_laye_types)
 
 
+# 应用 FSDP 检查点
 def apply_fsdp_checkpointing(model, ckpt_layer_types: tuple):
     # NOTE(Mddct):  torch.utils.checkpoint is currently incompatible with
     # wenet's model mode. Using this writing method, Please refer to
@@ -116,3 +122,6 @@ def apply_fsdp_checkpointing(model, ckpt_layer_types: tuple):
         model,
         checkpoint_wrapper_fn=non_reentrant_wrapper,
         check_fn=lambda submodule: isinstance(submodule, ckpt_layer_types))
+
+# 该文件定义了 wenet 项目中与 FSDP 相关的实用函数，包括包装策略、模型保存、梯度检查点检查和应用等。
+# 通过这些函数，可以更好地管理和优化 wenet 项目中的大模型训练和保存过程。

@@ -22,6 +22,7 @@ from wenet.text.paraformer_tokenizer import ParaformerTokenizer
 from wenet.text.whisper_tokenizer import WhisperTokenizer
 
 
+# 这段代码定义了一个函数 init_tokenizer，用于初始化不同类型的分词器（Tokenizer），并根据配置 configs 来选择适当的分词器类型。
 def init_tokenizer(configs) -> BaseTokenizer:
     # TODO(xcsong): Forcefully read the 'tokenizer' attribute.
     tokenizer_type = configs.get("tokenizer", "char")

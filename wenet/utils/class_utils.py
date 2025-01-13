@@ -34,6 +34,8 @@ from wenet.transformer.attention import (MultiHeadedAttention,
 from wenet.efficient_conformer.attention import (
     GroupedRelPositionMultiHeadedAttention)
 
+# 这段代码定义了一组用于构建深度学习模型的类字典，这些字典包含了不同类型的激活函数、RNN 模块、子采样层、嵌入层、注意力机制、前馈网络和归一化层。
+# 激活函数字典：将常用的激活函数与字符串标签关联，便于根据名称动态获取相应的激活函数类。
 WENET_ACTIVATION_CLASSES = {
     "hardtanh": torch.nn.Hardtanh,
     "tanh": torch.nn.Tanh,
@@ -43,12 +45,14 @@ WENET_ACTIVATION_CLASSES = {
     "gelu": torch.nn.GELU,
 }
 
+# RNN 模块字典：提供不同类型的循环神经网络（RNN）模型。
 WENET_RNN_CLASSES = {
     "rnn": torch.nn.RNN,
     "lstm": torch.nn.LSTM,
     "gru": torch.nn.GRU,
 }
 
+# 子采样层字典：将不同的子采样方法与标签关联。
 WENET_SUBSAMPLE_CLASSES = {
     "linear": LinearNoSubsampling,
     "embed": EmbedinigNoSubsampling,
@@ -62,6 +66,7 @@ WENET_SUBSAMPLE_CLASSES = {
     'stack_n_frames': StackNFramesSubsampling,
 }
 
+# 嵌入层字典：提供不同的嵌入方式，特别是在序列建模中使用的位置信息。
 WENET_EMB_CLASSES = {
     "embed": PositionalEncoding,
     "abs_pos": PositionalEncoding,
@@ -73,6 +78,7 @@ WENET_EMB_CLASSES = {
     'rope_pos': RopePositionalEncoding,
 }
 
+# 注意力机制字典：提供不同的注意力机制。
 WENET_ATTENTION_CLASSES = {
     "selfattn": MultiHeadedAttention,
     "rel_selfattn": RelPositionMultiHeadedAttention,
@@ -82,14 +88,18 @@ WENET_ATTENTION_CLASSES = {
     'rope_abs_selfattn': RopeMultiHeadedAttention,
 }
 
+# 前馈神经网络字典：提供不同类型的前馈网络。
 WENET_MLP_CLASSES = {
     'position_wise_feed_forward': PositionwiseFeedForward,
     'moe': MoEFFNLayer,
     'gated': GatedVariantsMLP
 }
 
+# 归一化层字典：提供不同的归一化方法。
 WENET_NORM_CLASSES = {
     'layer_norm': LayerNorm,
     'batch_norm': BatchNorm1d,
     'rms_norm': RMSNorm
 }
+
+# 总结：这些字典通过将不同类型的模块（如激活函数、RNN、子采样、嵌入、注意力机制、前馈网络和归一化层）与其对应的字符串标签关联，为构建深度学习模型提供了灵活性。

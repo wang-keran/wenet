@@ -23,11 +23,17 @@ from collections import OrderedDict
 import datetime
 
 
+# 加载模型检查点：从指定路径加载模型的状态字典，并更新模型参数。
 def load_checkpoint(model: torch.nn.Module, path: str) -> dict:
+    # 这行代码的作用是从环境变量中获取名为 RANK 的值，并将其转换为整数。如果环境变量 RANK 不存在，则使用默认值 0。
+    # 变量 rank 用于记录和区分不同进程在加载模型检查点时的日志信息。
     rank = int(os.environ.get('RANK', 0))
     logging.info('[Rank {}] Checkpoint: loading from checkpoint {}'.format(
         rank, path))
+    print("CHECKPOINT模型")
+    # 加载检查点并记录日志
     checkpoint = torch.load(path, map_location='cpu', mmap=True)
+    # 用来加载检查点中的模型参数（即 state_dict）到当前的 model 中。当前model是encoder,decoder,ctc等初始化完成的模型
     missing_keys, unexpected_keys = model.load_state_dict(checkpoint,
                                                           strict=False)
     if rank == 0:
@@ -37,12 +43,14 @@ def load_checkpoint(model: torch.nn.Module, path: str) -> dict:
             logging.info("unexpected tensor: {}".format(key))
     info_path = re.sub('.pt$', '.yaml', path)
     configs = {}
+    # 找不到同模型名称的配置文件无所谓，不影响运行
     if os.path.exists(info_path):
         with open(info_path, 'r') as fin:
             configs = yaml.load(fin, Loader=yaml.FullLoader)
     return configs
 
 
+# 保存模型检查点：将当前模型的状态保存到指定路径，并记录相关信息。
 def save_state_dict_and_infos(state_dict, path: str, infos=None):
     rank = int(os.environ.get('RANK', 0))
     logging.info('[Rank {}] Checkpoint: save to checkpoint {}'.format(
@@ -57,6 +65,7 @@ def save_state_dict_and_infos(state_dict, path: str, infos=None):
         fout.write(data)
 
 
+# 过滤模块：检查给定模块名是否与模型的状态字典中的键匹配，并返回有效的模块。
 def save_checkpoint(model: torch.nn.Module, path: str, infos=None):
     '''
     Args:
@@ -71,6 +80,7 @@ def save_checkpoint(model: torch.nn.Module, path: str, infos=None):
     save_state_dict_and_infos(state_dict, path, infos)
 
 
+# 加载训练好的模块：从指定的检查点加载预训练的模块并更新当前模型。
 def filter_modules(model_state_dict, modules):
     rank = int(os.environ.get('RANK', 0))
     new_mods = []

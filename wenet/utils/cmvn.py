@@ -18,6 +18,8 @@ import math
 import numpy as np
 
 
+# 这段代码定义了一组函数，用于加载和计算 CMVN（均值和方差归一化）统计信息，支持 JSON 格式和 Kaldi 格式。
+# 加载 JSON 格式的 CMVN 统计文件：从指定的 JSON 文件中读取均值和方差，并根据帧数计算标准化参数。
 def _load_json_cmvn(json_cmvn_file):
     """ Load the json format cmvn stats file and calculate cmvn
 
@@ -43,6 +45,7 @@ def _load_json_cmvn(json_cmvn_file):
     return cmvn
 
 
+# 加载 Kaldi 格式的 CMVN 统计文件：读取 Kaldi 格式的文本文件，计算均值和方差。
 def _load_kaldi_cmvn(kaldi_cmvn_file):
     """ Load the kaldi format cmvn stats file and calculate cmvn
 
@@ -85,9 +88,13 @@ def _load_kaldi_cmvn(kaldi_cmvn_file):
     return cmvn
 
 
+# 加载 CMVN 文件：根据输入的文件格式调用相应的加载函数。
 def load_cmvn(cmvn_file, is_json):
     if is_json:
         cmvn = _load_json_cmvn(cmvn_file)
     else:
         cmvn = _load_kaldi_cmvn(cmvn_file)
     return cmvn[0], cmvn[1]
+
+# 总结：这段代码提供了两种格式的 CMVN 统计文件加载功能，通过读取均值和方差来计算标准化参数，适用于音频处理和特征提取任务。
+# 通过使用 JSON 和 Kaldi 格式的支持，代码具备灵活性和广泛适用性。整体设计清晰，函数分工明确，便于维护和扩展。
