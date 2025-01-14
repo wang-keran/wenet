@@ -43,7 +43,7 @@ if __name__ == "__main__":
         "--url",
         type=str,
         required=False,
-        default="0.0.0.0:8001",                   # default="localhost:8001",
+        default="localhost:8001",                   # default="localhost:8001",default="0.0.0.0:8001
         help="Inference server URL. Default is "
         "localhost:8001.",
     )
