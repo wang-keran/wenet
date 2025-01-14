@@ -25,7 +25,20 @@ parser.add_argument(
     "--url",
     type=str,
     required=False,
-    default="0.0.0.0:8001",     #这里被修改过
+    default="localhost:8001",     #这里被修改过,default="0.0.0.0:8001"只能在我的vscode终端中的venv_test虚拟环境中运行，在ubuntu的终端的venv_test虚拟环境中运行会报错,default="localhost:8001"可以在vscode中的终端的虚拟环境和ubuntu终端中的虚拟环境中运行
+    # 报错为：Traceback (most recent call last):
+#   File "/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test.py", line 149, in <module>
+#     result = speech_client.recognize(x)
+#              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+#   File "/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/speech_client.py", line 176, in recognize
+#     response = self.triton_client.infer(
+#                ^^^^^^^^^^^^^^^^^^^^^^^^^
+#   File "/home/wangkeran/桌面/WENET/VENV_TEST/venv_test/lib/python3.12/site-packages/tritonclient/grpc/_client.py", line 1572, in infer
+#     raise_error_grpc(rpc_error)
+#   File "/home/wangkeran/桌面/WENET/VENV_TEST/venv_test/lib/python3.12/site-packages/tritonclient/grpc/_utils.py", line 77, in raise_error_grpc
+#     raise get_error_grpc(rpc_error) from None
+# tritonclient.utils.InferenceServerException: [StatusCode.UNAVAILABLE] failed to connect to all addresses; last error: UNAVAILABLE: ipv4:127.0.0.1:7897: Socket closed
+
     help="Inference server URL. Default is " "localhost:8001.",
 )
 #模型名称非必要，默认流式wenet，可以选择流式还是注意力式（非流式）
