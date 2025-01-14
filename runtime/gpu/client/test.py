@@ -26,7 +26,7 @@ parser.add_argument(
     type=str,
     required=False,
     default="localhost:8001",     #这里被修改过,default="0.0.0.0:8001"只能在我的vscode终端中的venv_test虚拟环境中运行，在ubuntu的终端的venv_test虚拟环境中运行会报错,default="localhost:8001"可以在vscode中的终端的虚拟环境和ubuntu终端中的虚拟环境中运行
-    # 报错为：Traceback (most recent call last):测试上传是否需要更换目录
+    # 报错为：Traceback (most recent call last):
 #   File "/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test.py", line 149, in <module>
 #     result = speech_client.recognize(x)
 #              ^^^^^^^^^^^^^^^^^^^^^^^^^^
