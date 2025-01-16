@@ -22,7 +22,7 @@ input [
   {
     name: "encoder_out"
     data_type: TYPE_#DTYPE
-    dims: [-1, #output_size] # [-1, feature_size]
+    dims: [-1, 256] # [-1, feature_size]
   },
   {
     name: "encoder_out_lens"
@@ -33,22 +33,22 @@ input [
   {
     name: "hyps_pad_sos_eos"
     data_type: TYPE_INT64
-    dims: [#beam_size, -1]
+    dims: [10, -1]
   },
  {
     name: "hyps_lens_sos"
     data_type: TYPE_INT32
-    dims: [#beam_size]
+    dims: [10]
   },
   {
     name: "r_hyps_pad_sos_eos"
     data_type: TYPE_INT64
-    dims: [#beam_size, -1]
+    dims: [10, -1]
   },
   {
     name: "ctc_score"
-    data_type: TYPE_#DTYPE
-    dims: [#beam_size]
+    data_type: TYPE_FP16
+    dims: [10]
   }
 ]
 
@@ -68,7 +68,7 @@ dynamic_batching {
 instance_group [
     {
       count: 2
-      kind: KIND_GPU
+      kind: KIND_CPU
     }
 ]
 
