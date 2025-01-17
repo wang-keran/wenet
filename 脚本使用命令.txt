@@ -1,0 +1,81 @@
+python3 wenet/wenet/bin/export_onnx_gpu.py --config=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/train.yaml --checkpoint=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/final.pt --cmvn_file=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/global_cmvn --ctc_weight=0.1 --reverse_weight=0.4 --output_onnx_dir=/home/wangkeran/桌面/WENET/aishellout --fp16 --streaming
+
+ --output_onnx_dir=/home/wangkeran/桌面/WENET/aishellout-non-streaming --fp16 --streaming
+
+上面二合一才能正常使用，不知道为什么
+
+20210601_u2++_conformer_exp_aishell --fp16 --streaming
+
+$model_dir=/home/wangkeran/桌面/wenet_code/20210601_u2++_conformer_exp_aishell
+$onnx_model_dir=/home/wangkeran/桌面/wenet_code/aishellout
+20210601_u2++_conformer_exp_aishell
+
+命令：
+pip install torch==2.4.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
+问题：
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+openai-whisper 20231117 requires triton<3,>=2.0.0, but you have triton 3.0.0 which is incompatible.
+命令：
+pip install openai-whisper -i https://pypi.tuna.tsinghua.edu.cn/simple
+问题：
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+torchaudio 2.4.1 requires torch==2.4.1, but you have torch 2.3.1 which is incompatible.
+torchvision 0.19.1 requires torch==2.4.1, but you have torch 2.3.1 which is incompatible
+命令：
+
+问题：
+
+
+
+export PYTHONPATH=/usr/lib/python3.8/site-packages/swig_decoders-1.1-py3.8-linux-x86_64.egg:/root/.local/lib/python3.8/site-packages:/root/.local/lib/python3.8/site-packages/swig_decoders-1.1-py3.8-linux-x86_64.egg:$PYTHONPATH
+
+这是最新的export
+export PYTHONPATH=/usr/lib/python3.8/site-packages:/usr/lib/python3.8/site-packages/swig_decoders-1.1-py3.8-linux-x86_64.egg:$PYTHONPATH
+
+
+
+python3 wenet/wenet/bin/export_onnx_gpu.py --config=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/train.yaml --checkpoint=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/final.pt --cmvn_file=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/global_cmvn --ctc_weight=0.5 -reverse_weight=0.4 --output_onnx_dir=/home/wangkeran/桌面/WENET/aishellout --fp16 --streaming
+
+/dev/sda1、
+
+
+
+
+swig是连接各种编程语言的
+CTC decoder，即连接时序分类（Connectionist Temporal Classification）解码器
+1.
+实现流式语音识别：
+2.
+1.CTC decoder可以实时处理语音信号，将语音帧序列转换为文本序列，满足实时字幕、语音助手等应用场景的需求。
+2.在流式语音识别中，CTC decoder能够逐步输出识别结果，并在句子结束时进行重打分纠正，提高最终识别准确率。
+3.
+解决对齐问题：
+4.
+1.CTC方法允许在训练过程中自动对齐语音帧序列和转录文本序列，无需对每个字符或音素出现的起止时间段进行标注。
+2.CTC decoder在解码过程中，通过定义一个多对一的函数，将神经网络输出序列中重复的字符进行合并，得到一个唯一的输出序列，从而解决输入和输出序列长度不一致的问题。
+
+
+新模型：
+python3 wenet/wenet/bin/export_onnx_gpu.py --config=/home/wangkeran/桌面/WENET/aishell2_u2pp_conformer_exp/aishell2_u2pp_conformer_exp/train.yaml --checkpoint=/home/wangkeran/桌面/WENET/aishell2_u2pp_conformer_exp/aishell2_u2pp_conformer_exp/final.pt --cmvn_file=/home/wangkeran/桌面/WENET/aishell2_u2pp_conformer_exp/aishell2_u2pp_conformer_exp/global_cmvn --ctc_weight=0.1 --reverse_weight=0.4
+ --output_onnx_dir=/home/wangkeran/桌面/WENET/aishellout --fp16 --streaming
+
+ --output_onnx_dir=/home/wangkeran/桌面/WENET/aishellout --fp16 --streaming
+
+
+GPT说的模型使用方法：
+python3 wenet/wenet/bin/export_onnx_gpu.py --output_onnx_dir=/home/wangkeran/桌面/WENET/aishellout-non-streaming 
+
+
+CPU版本的命令
+python3 wenet/wenet/bin/export_onnx_cpu.py --config=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/train.yaml --checkpoint=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/final.pt --reverse_weight=0.4 --output_dir=/home/wangkeran/桌面/WENET/aishellout-non-streaming --chunk_size=16 --num_decoding_left_chunks=4
+
+非流式语音识别：python3 client.py --audio_file=./test_wavs/mid.wav
+
+转换非流式GPU版本：python3 wenet/wenet/bin/export_onnx_gpu.py --config=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/train.yaml --checkpoint=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/final.pt --cmvn_file=/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/global_cmvn --ctc_weight=0.1 --reverse_weight=0.4 --output_onnx_dir=/home/wangkeran/桌面/WENET/aishellout-non-streaming --fp16 
+
+自带的流式语音识别：python3 client.py --model_name=streaming_wenet --audio_file=./test_wavs/mid.wav --streaming 
+
+项目内部的识别方式流式：python3 recognize_wav.py --simulate_streaming --decoding_chunk_size=16 --num_decoding_left_chunks=4
+
+项目内部的非流式识别方式：python3 recognize_wav.py
+
