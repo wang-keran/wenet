@@ -14,6 +14,7 @@
 
 # pbtxt文件是一个文本格式的文件，它描述了模型的图形结构，包括节点和边的信息。
 
+# 这个文件是所有模型 ensemble 的配置文件，也可以说是总管输入输出
 name: "attention_rescoring"
 platform: "ensemble"
 max_batch_size: 64 #MAX_BATCH

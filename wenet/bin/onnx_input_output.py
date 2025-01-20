@@ -2,7 +2,7 @@ import onnx
 import os
 
 # 设置模型路径
-model_path = "/home/wangkeran/桌面/WENET/test-cpu-non-streaming-output/ctc.onnx"
+model_path = "/home/wangkeran/桌面/WENET/test-cpu-non-streaming-output/encoder.onnx"
 
 # 检查模型文件是否存在
 if not os.path.exists(model_path):
