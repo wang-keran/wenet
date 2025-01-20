@@ -23,6 +23,8 @@ import json
 import os
 import yaml
 
+# 这个模型文件的输入输出是不是也得改？模型本身是不是也得改？因为decoder.onnx和encoder.onnx输入输出已经不一样了，目前代码是GPU直接粘贴过来的，和pbtxt匹配
+
 
 class TritonPythonModel:
     """Your Python model must use the same class name. Every Python model
