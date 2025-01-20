@@ -20,44 +20,35 @@ default_model_filename: "decoder.onnx"
 max_batch_size: 640
 input [
   {
+    name: "hyps"
+    data_type: TYPE_INT64
+    format: FORMAT_NONE
+    dims: [ 0, 0 ]
+  },
+  {
+    name: "hyps_lens"
+    data_type: TYPE_INT64
+    format: FORMAT_NONE
+    dims: [ 0 ]
+  },
+  {
     name: "encoder_out"
-    data_type: TYPE_FP16
-    dims: [-1, 256] # [-1, feature_size]
-  },
-  {
-    name: "encoder_out_lens"
-    data_type: TYPE_INT32
-    dims: [1]
-    reshape: { shape: [ ] }
-  },
-  {
-    name: "hyps_pad_sos_eos"
-    data_type: TYPE_INT64
-    dims: [10, -1]
-  },
- {
-    name: "hyps_lens_sos"
-    data_type: TYPE_INT32
-    dims: [10]
-  },
-  {
-    name: "r_hyps_pad_sos_eos"
-    data_type: TYPE_INT64
-    dims: [10, -1]
-  },
-  {
-    name: "ctc_score"
-    data_type: TYPE_FP16
-    dims: [10]
+    data_type: TYPE_FP32
+    format: FORMAT_NONE
+    dims: [ 1, 0, 256 ]
   }
 ]
 
 output [
   {
-    name: "best_index"
-    data_type: TYPE_INT64
-    dims: [1]
-    reshape: { shape: [ ] }
+    name: "score"
+    data_type: TYPE_FP32
+    dims: [ 0, 0, 4233 ]
+  },
+  {
+    name: "r_score"
+    data_type: TYPE_FP32
+    dims: [ 0, 0, 4233 ]
   }
 ]
 
