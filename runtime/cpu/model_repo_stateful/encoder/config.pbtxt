@@ -81,38 +81,51 @@ sequence_batching{
 }
 input [
   {
-    name: "chunk_xs"
+    name: "chunk"
     data_type: TYPE_FP32
-    dims: [67, 80]
+    dims: [ 1, 0, 80 ]  # batch size = 1，动态时间步长，特征维度 80
   },
   {
-    name: "chunk_lens"
-    data_type: TYPE_INT32
-    dims: [ 1 ]
-    reshape: { shape: [] }
+    name: "offset"
+    data_type: TYPE_INT64
+    dims: [ ]  # 未知形状，定义为空数组
+  },
+  {
+    name: "required_cache_size"
+    data_type: TYPE_INT64
+    dims: [ ]  # 未知形状，定义为空数组
+  },
+  {
+    name: "att_cache"
+    data_type: TYPE_FP32
+    dims: [ 12, 4, 0, 128 ]  # 12 层，4 个头，动态时间步长，特征维度 128
+  },
+  {
+    name: "cnn_cache"
+    data_type: TYPE_FP32
+    dims: [ 12, 1, 256, 7 ]  # 12 层，单通道，特征维度 256，卷积核大小 7
+  },
+  {
+    name: "att_mask"
+    data_type: TYPE_BOOL
+    dims: [ 1, 1, 0 ]  # batch size = 1，单头，动态时间步长
   }
 ]
 output [
   {
-    name: "log_probs"
+    name: "output"
     data_type: TYPE_FP32
-    dims: [-1, 10] # [-1, beam_size]
+    dims: [ 0, 0, 256 ]  # 动态 batch，动态时间步长，特征维度 256
   },
   {
-    name: "log_probs_idx"
-    data_type: TYPE_INT64
-    dims: [-1, 10] # [-1, beam_size]
-  },
-  {
-    name: "chunk_out"
+    name: "r_att_cache"
     data_type: TYPE_FP32
-    dims: [-1, 256]
+    dims: [ 12, 4, 0, 128 ]  # 返回的注意力缓存，形状与输入一致
   },
   {
-    name: "chunk_out_lens"
-    data_type: TYPE_INT32
-    dims: [1]
-    reshape: { shape: [] }
+    name: "r_cnn_cache"
+    data_type: TYPE_FP32
+    dims: [ 12, 1, 256, 0 ]  # 返回的卷积缓存，动态时间步长
   }
 ]
 instance_group [
