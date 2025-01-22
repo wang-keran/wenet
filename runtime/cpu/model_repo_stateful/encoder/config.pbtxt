@@ -28,6 +28,7 @@ sequence_batching{
     }
     control_input [
     ]
+    # offset都是自带的
     state [
     {
       input_name: "offset"
@@ -41,18 +42,25 @@ sequence_batching{
        name: "initial state"
       }
     },
+    # num_layers来自train.yaml,encoder_conf.num_blocks，是预训练模型自带的
+    # num_head来自train.yaml,encoder_conf.attention_heads，是预训练模型自带的
+    # att_cache_output_size来自train.yaml,["encoder_conf"]["output_size"]//num_head*2，是训练模型自带的算出来的
+    # cache_size来自命令输入，chunk_size * num_left_chunks
     {
       input_name: "att_cache"
       output_name: "r_att_cache"
       data_type: TYPE_FP32
-      dims: [ 12, 4, 80, 128 ]
+      dims: [ 12, 4, 64, 128 ]
       initial_state: {
        data_type: TYPE_FP32
-       dims: [ 12, 4, 80, 128 ]
+       dims: [ 12, 4, 64, 128 ]
        zero_data: true
        name: "initial state"
       }
     },
+    # dims这个7的维度是原来pbtxt文件的，因为输出没有config.pbtxt的模板，实际使用的时候，可能需要修改对应的参数。就是7,计算方法在export_onnx_gpu.py里
+    # output_size:configs["encoder_conf"]["output_size"]  来自train.yaml
+    # cnn_module_cache来自train.yaml,configs["encoder_conf"].get("cnn_module_kernel", 1) - 1，没有cnn_module_kernel默认是1，最终结果是1-1=0
     {
       input_name: "cnn_cache"
       output_name: "r_cnn_cache"
@@ -69,10 +77,10 @@ sequence_batching{
       input_name: "cache_mask"
       output_name: "r_cache_mask"
       data_type: TYPE_FP32
-      dims: [1, 80]
+      dims: [1, 64]
       initial_state: {
        data_type: TYPE_FP32
-       dims: [1, 80]
+       dims: [1, 64]
        zero_data: true
        name: "initial state"
       }
