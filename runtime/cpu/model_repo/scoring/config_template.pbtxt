@@ -58,6 +58,7 @@ input [
     dims: [-1, #beam_size]
   }
 ]
+# 最终输出
 output [
   {
     name: "OUTPUT0"

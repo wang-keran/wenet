@@ -22,22 +22,25 @@ input [
  {
     name: "chunk"
     data_type: TYPE_FP32
-    dims: [1, 0, 80]
+    dims: [1, 0, 80]  #batch,decoding_window,feature_size
   },
   {
     name: "offset"
     data_type: TYPE_INT64
-    dims: [-1]
+    dims: [0]
   },
   {
     name: "att_cache"
     data_type: TYPE_FP32
-    dims: [12, 4, 0, 128]
+    dims: [12, 4, 0, 128] #args['num_blocks'], args['head'], required_cache_size,
+                          #args['output_size'] // args['head'] * 2
   },
   {
     name: "cnn_cache"
     data_type: TYPE_FP32
     dims: [12, 1, 256, 7]
+    # args['num_blocks'], args['batch'], args['output_size'],
+    # args['cnn_module_kernel'] - 1
   }
 ]
 
@@ -50,7 +53,7 @@ output [
   {
     name: "r_att_cache"
     data_type: TYPE_FP32
-    dims: [12, 4, 0, 128]
+    dims: [12, 4, 0, 128] # 第二个是浮动维度，时间的缓存步数，但是前面这四个不知道是什么
   },
   {
     name: "r_cnn_cache"

@@ -35,6 +35,7 @@ parameters [
    value : { string_value: "None"}
   }
 ]
+# 这里需要改，现在encoder的输出变成了output:dims[0,0,256],r_att_cache:[12, 4, 0, 128],r_cnn_cache:[12, 1, 256, 0]
 input [
   {
     name: "encoder_out"
@@ -58,6 +59,7 @@ input [
     dims: [-1, 10]
   }
 ]
+# 最后一步输出的
 output [
   {
     name: "OUTPUT0"
