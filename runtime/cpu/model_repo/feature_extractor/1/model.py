@@ -8,7 +8,7 @@ from typing import List
 import json
 
 # 这个模型文件的输入输出是不是也得改？模型本身是不是也得改？因为decoder.onnx和encoder.onnx输入输出已经不一样了，目前代码是GPU直接粘贴过来的，和pbtxt匹配
-
+# 初始化滤波器
 class Fbank(torch.nn.Module):
 
     def __init__(self, opts):
@@ -23,6 +23,7 @@ class TritonPythonModel:
     """Your Python model must use the same class name. Every Python model
     that is created must have "TritonPythonModel" as the class name.
     """
+
 
     def initialize(self, args):
         """`initialize` is called only once when the model is being loaded.
@@ -40,18 +41,21 @@ class TritonPythonModel:
           * model_version: Model version
           * model_name: Model name
         """
+        # 获取模型配置和最大批量大小
         self.model_config = model_config = json.loads(args['model_config'])
         self.max_batch_size = max(model_config["max_batch_size"], 1)
 
+        # 判断使用什么设备，GPU，CPU都能跑
         if "GPU" in model_config["instance_group"][0]["kind"]:
             self.device = "cuda"
         else:
             self.device = "cpu"
 
+        # 获取输出的张量的类型（speech）
         # Get OUTPUT0 configuration
         output0_config = pb_utils.get_output_config_by_name(
             model_config, "speech")
-        # Convert Triton types to numpy types
+        # Convert Triton types to numpy types，将Triton类型转换为numpy类型
         output0_dtype = pb_utils.triton_string_to_numpy(
             output0_config['data_type'])
         if output0_dtype == np.float32:
@@ -59,18 +63,23 @@ class TritonPythonModel:
         else:
             self.output0_dtype = torch.float16
 
+        # 获取输出的张量的类型（speech）
         # Get OUTPUT1 configuration
         output1_config = pb_utils.get_output_config_by_name(
             model_config, "speech_lengths")
-        # Convert Triton types to numpy types
+        # Convert Triton types to numpy types，将Triton类型转换为numpy类型
         self.output1_dtype = pb_utils.triton_string_to_numpy(
             output1_config['data_type'])
 
+        # 获取帧移长度等配置信息
         params = self.model_config['parameters']
+        # 初始化特征提取器
         opts = kaldifeat.FbankOptions()
+        # 禁用随机噪声，因为输入已经归一化了
         opts.frame_opts.dither = 0
 
         for li in params.items():
+            # 解包键值对
             key, value = li
             value = value["string_value"]
             if key == "num_mel_bins":
@@ -81,10 +90,32 @@ class TritonPythonModel:
                 opts.frame_opts.frame_length_ms = float(value)
             elif key == "sample_rate":
                 opts.frame_opts.samp_freq = int(value)
+        # 获取设备
         opts.device = torch.device(self.device)
         self.opts = opts
+        # 获取特征提取器
         self.feature_extractor = Fbank(self.opts)
-        self.feature_size = opts.mel_opts.num_bins
+        # 获取特征大小
+        self.feature_size = opts.mel_opts.num_bins  #feature_size
+        # (args.chunk_size - 1) * model.encoder.embed.subsampling_rate + model.encoder.embed.right_context + 1
+        decoding_window=(args.chunk_size - 1) * \
+        model.encoder.embed.subsampling_rate + \
+        model.encoder.embed.right_context + 1 if args.chunk_size > 0 else 67
+        offset = args['chunk_size'] * args['left_chunks']
+        # attention_cache:
+        num_blocks=configs['encoder_conf']['num_blocks']    #train.yaml中的数据
+        head=configs['encoder_conf']['attention_heads'] #在train.yaml中
+        required_cache_size=args['chunk_size'] * args['left_chunks']
+        args['output_size'] // args['head'] * 2
+        arguments['output_size'] = configs['encoder_conf']['output_size']   #在train.yaml中
+
+        # cnn_cache
+        num_blocks=configs['encoder_conf']['num_blocks']    #train.yaml中的数据
+        args['batch']=1
+        arguments['output_size'] = configs['encoder_conf']['output_size']   #在train.yaml中
+        args['cnn_module_kernel'] - 1
+        arguments['cnn_module_kernel'] = configs['encoder_conf'].get(
+        'cnn_module_kernel', 1)
 
     def execute(self, requests):
         """`execute` must be implemented in every Python model. `execute`
@@ -135,6 +166,7 @@ class TritonPythonModel:
             speech_lengths = torch.zeros((b, 1),
                                          dtype=torch.int32,
                                          device=self.device)
+            
             for i in range(b):
                 f = features[idx]
                 f_l = f.shape[0]
@@ -150,5 +182,18 @@ class TritonPythonModel:
                                                to_dlpack(speech_lengths))
             inference_response = pb_utils.InferenceResponse(
                 output_tensors=[out0, out1])
+            
+            # 新的输出  #数字有了，往里面写啥？
+            batch = 1
+            decoding_window=0
+            feature_size=80
+            offset=0
+            num_blocks=12
+            head=4
+            required_cache_size=0
+            d_k=128
+            output_size=256
+            cnn_module_kernel=7
+            
             responses.append(inference_response)
         return responses
