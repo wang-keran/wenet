@@ -97,25 +97,25 @@ class TritonPythonModel:
         self.feature_extractor = Fbank(self.opts)
         # 获取特征大小
         self.feature_size = opts.mel_opts.num_bins  #feature_size
-        # (args.chunk_size - 1) * model.encoder.embed.subsampling_rate + model.encoder.embed.right_context + 1
-        decoding_window=(args.chunk_size - 1) * \
-        model.encoder.embed.subsampling_rate + \
-        model.encoder.embed.right_context + 1 if args.chunk_size > 0 else 67
-        offset = args['chunk_size'] * args['left_chunks']
-        # attention_cache:
-        num_blocks=configs['encoder_conf']['num_blocks']    #train.yaml中的数据
-        head=configs['encoder_conf']['attention_heads'] #在train.yaml中
-        required_cache_size=args['chunk_size'] * args['left_chunks']
-        args['output_size'] // args['head'] * 2
-        arguments['output_size'] = configs['encoder_conf']['output_size']   #在train.yaml中
+        # # (args.chunk_size - 1) * model.encoder.embed.subsampling_rate + model.encoder.embed.right_context + 1
+        # decoding_window=(args.chunk_size - 1) * \
+        # model.encoder.embed.subsampling_rate + \
+        # model.encoder.embed.right_context + 1 if args.chunk_size > 0 else 67
+        # offset = args['chunk_size'] * args['left_chunks']
+        # # attention_cache:
+        # num_blocks=configs['encoder_conf']['num_blocks']    #train.yaml中的数据
+        # head=configs['encoder_conf']['attention_heads'] #在train.yaml中
+        # required_cache_size=args['chunk_size'] * args['left_chunks']
+        # args['output_size'] // args['head'] * 2
+        # arguments['output_size'] = configs['encoder_conf']['output_size']   #在train.yaml中
 
-        # cnn_cache
-        num_blocks=configs['encoder_conf']['num_blocks']    #train.yaml中的数据
-        args['batch']=1
-        arguments['output_size'] = configs['encoder_conf']['output_size']   #在train.yaml中
-        args['cnn_module_kernel'] - 1
-        arguments['cnn_module_kernel'] = configs['encoder_conf'].get(
-        'cnn_module_kernel', 1)
+        # # cnn_cache
+        # num_blocks=configs['encoder_conf']['num_blocks']    #train.yaml中的数据
+        # args['batch']=1
+        # arguments['output_size'] = configs['encoder_conf']['output_size']   #在train.yaml中
+        # args['cnn_module_kernel'] - 1
+        # arguments['cnn_module_kernel'] = configs['encoder_conf'].get(
+        # 'cnn_module_kernel', 1)
 
     def execute(self, requests):
         """`execute` must be implemented in every Python model. `execute`
@@ -180,8 +180,8 @@ class TritonPythonModel:
             out0 = pb_utils.Tensor.from_dlpack("speech", to_dlpack(speech))
             out1 = pb_utils.Tensor.from_dlpack("speech_lengths",
                                                to_dlpack(speech_lengths))
-            inference_response = pb_utils.InferenceResponse(
-                output_tensors=[out0, out1])
+            # inference_response = pb_utils.InferenceResponse(
+            #     output_tensors=[out0, out1])
             
             # 新的输出  #数字有了，往里面写啥？
             batch = 1
@@ -194,6 +194,28 @@ class TritonPythonModel:
             d_k=128
             output_size=256
             cnn_module_kernel=7
+            
+            # 创建张量
+            chunk_output=torch.zeros(batch,decoding_window,feature_size,dtype=torch.float32)
+            offset_output=torch.zeros(offset,dtype=torch.int64)
+            att_cache_out=torch.zeros(batch,num_blocks,head,required_cache_size,d_k,dtype=torch.float32)
+            cnn_cache=torch.zeros(num_blocks,batch,output_size,cnn_module_kernel,dtype=torch.float32)
+            
+            # 将张量转换为DLpack格式
+            chunk_dlpack=to_dlpack(chunk_output)
+            offset_dlpack=to_dlpack(offset_output)
+            att_cache_dlpack=to_dlpack(att_cache_out)
+            cnn_cache_dlpack=to_dlpack(cnn_cache)
+            
+            # 封装为 pb_utils.Tensor 对象
+            chunk_tensor=pb_utils.Tensor("chunk",chunk_dlpack)
+            offset_tensor=pb_utils.Tensor("offset",offset_dlpack)
+            att_cache_tensor=pb_utils.Tensor("att_cache",att_cache_dlpack)
+            cnn_cache_tensor=pb_utils.Tensor("cnn_cache",cnn_cache_dlpack)
+            
+            # 创建推理响应返回的 Tensor 对象
+            inference_response=pb_utils.InferenceResponse(
+                output_tensors=[chunk_tensor,offset_tensor,att_cache_tensor,cnn_cache_tensor])
             
             responses.append(inference_response)
         return responses
