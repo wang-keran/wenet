@@ -214,6 +214,7 @@ def load_data(wav_file):
     sample['sample_rate'] = sample_rate
     # print("****","sample_rate is ",sample_rate,"***")
     return sample
+# 分词处理，将结果存储在sample字典中
 def tokenize(sample, tokenizer):#: BaseTokenizer):
     """ Decode text to chars or BPE
         Inplace operation
@@ -263,6 +264,7 @@ def compute_fbank(sample,
     sample['feat'] = mat
     # print(mat.shape,"********")
     return sample  
+# 重采样，采样率设置为16000
 def resample(sample, resample_rate=16000):
     """ Resample sample.
         Inplace operation.
@@ -284,6 +286,7 @@ def resample(sample, resample_rate=16000):
             orig_freq=sample_rate, new_freq=resample_rate)(waveform)
         # print("****","resample_","***")
     return sample
+# 进行填充和排序，更好进行推理和训练
 def padding(data):
     """ Padding the data into training data
 
@@ -369,10 +372,11 @@ def load_data_test():
     args = get_args()
     with open(args.config, 'r') as fin:
         configs = yaml.load(fin, Loader=yaml.FullLoader)
-        print("配置文件是：")
-        print(configs)
-        print("配置文件打印结束")
-    wav_file = '/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/mid.wav'
+        # print("配置文件是：")
+        # print(configs)
+        # print("配置文件打印结束")
+    wav_file = '/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/long.wav'
+    start_read_wav = time.perf_counter()
     sample = load_data(wav_file)
     tokenizer = init_tokenizer(configs)
     sample  = tokenize(sample,tokenizer)
@@ -390,6 +394,8 @@ def load_data_test():
     sample = padding(sample)
     # print(sample['feats'],sample['feats'].shape)
     # np.save("tensor_data.npy", sample['feat'])
+    end_read_wav = time.perf_counter()
+    runTime_read_wav = end_read_wav - start_read_wav
     
    
     # 这里进行了编码器，解码器，CTC的初始化
@@ -418,6 +424,7 @@ def load_data_test():
         file_name = os.path.join(dir_name, 'text')
         files[mode] = open(file_name, 'w')
     max_format_len = max([len(mode) for mode in args.modes])
+    start = time.perf_counter()
     with torch.no_grad():
         batch= sample
         keys = batch["keys"] 
@@ -455,6 +462,9 @@ def load_data_test():
                                             line))
                 # logging.info('{} {}'.format('result:',line))
                 files[mode].write(line + '\n')
+    end = time.perf_counter()
+    runTime = end - start + runTime_read_wav
+    print("更精确的运行时间为：", runTime, "秒")
     for mode, f in files.items():
         f.close()
     return sample
