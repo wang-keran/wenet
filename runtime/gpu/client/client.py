@@ -28,7 +28,10 @@ from utils import cal_cer
 from speech_client import *
 import numpy as np
 
+import time
+
 if __name__ == "__main__":
+    starttime = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-v",
@@ -193,3 +196,5 @@ if __name__ == "__main__":
     if transcripts:
         cer = cal_cer(predictions, transcripts)
         print("CER is: {}".format(cer))
+    endtime = time.time()
+    print("运行总时间: {}".format(endtime - starttime))

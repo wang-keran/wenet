@@ -34,6 +34,7 @@ int main(int argc, char* argv[]) {
   auto feature_config = wenet::InitFeaturePipelineConfigFromFlags();
   auto decode_resource = wenet::InitDecodeResourceFromFlags();
 
+  // 设置服务端接受信息的端口
   wenet::GrpcServer service(feature_config, decode_config, decode_resource);
   grpc::EnableDefaultHealthCheckService(true);
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();
