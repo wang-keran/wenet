@@ -88,7 +88,7 @@ def main():
     # Init env for ddp OR deepspeed初始化环境（两种之一）
     _, _, rank = init_distributed(args)
 
-    # Get dataset & dataloader获取数据集
+    # Get dataset & dataloader获取数据集,读取音频数据并将其转换为模型可以处理的格式
     train_dataset, cv_dataset, train_data_loader, cv_data_loader = \
         init_dataset_and_dataloader(args, configs, tokenizer)
 

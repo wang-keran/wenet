@@ -306,6 +306,8 @@ def padding(data):
     feats_length = torch.tensor([x['feat'].size(0) for x in sample],
                                 dtype=torch.int32)
     order = torch.argsort(feats_length, descending=True)
+    # 生成一个包含每个音频特征序列有效长度的张量 feats_lengths。
+    # 具体来说，它通过遍历 order 列表中的索引，获取每个样本的特征矩阵的长度，并将这些长度组合成一个张量。
     feats_lengths = torch.tensor([sample[i]['feat'].size(0) for i in order],
                                  dtype=torch.int32)
     # 特征是输入模型的主要数据，排序后可以将较长的特征放在前面，有助于减少填充，并且在后续的处理（如RNN计算）中更高效。
@@ -428,10 +430,11 @@ def load_data_test():
     with torch.no_grad():
         batch= sample
         keys = batch["keys"] 
-        feats = batch["feats"].to(device)# [1,407,80]
-        # print("main process \n",feats,feats.shape)
+        feats = batch["feats"].to(device)# [1,798,80],批次，帧数（批次大小），一帧的维度
+        print("main process \n",feats,feats.shape)
         target = batch["target"].to(device) # token的数字,和units文字对应
-        feats_lengths = batch["feats_lengths"].to(device) #1029
+        feats_lengths = batch["feats_lengths"].to(device) #798
+        print("feats_lengths:",feats_lengths)
         # 这里打个断点
         # pdb.set_trace() 
         print("断点调试测试")
