@@ -30,6 +30,7 @@ def init_tokenizer(configs) -> BaseTokenizer:
         tokenizer = WhisperTokenizer(
             multilingual=configs['tokenizer_conf']['is_multilingual'],
             num_languages=configs['tokenizer_conf']['num_languages'])
+    # 读取的配置文件是char型的分词器
     elif tokenizer_type == "char":
         tokenizer = CharTokenizer(
             configs['tokenizer_conf']['symbol_table_path'],

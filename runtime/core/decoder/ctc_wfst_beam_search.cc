@@ -83,49 +83,76 @@ void CtcWfstBeamSearch::Reset() {
 // 接收一系列的对数概率向量（每帧一个），并逐帧进行解码。
 // 它根据空白帧的阈值决定是否跳过某些帧，并维护了一个decoded_frames_mapping_来记录哪些帧被实际解码。最后，它获取最佳路径，并准备输出。
 void CtcWfstBeamSearch::Search(const std::vector<std::vector<float>>& logp) {
+  // 如果对数概率矩阵中没有对数概率，直接返回,检查有效性
   if (0 == logp.size()) {
     return;
   }
   // Every time we get the log posterior, we decode it all before return
+  // 遍历每一帧的对数概率
   for (int i = 0; i < logp.size(); i++) {
+    // 计算当前帧中空白符号的概率分布.logp[i][opts_.blank]是对数概率，使用std::exp幂指数ex将其转换为线性概率。
     float blank_score = std::exp(logp[i][opts_.blank]);
+  // 如果空白符号的分数大于设定的阈值,则跳过当前帧,opts_.blank_skip_thresh * opts_.blank_scale都是设置好的，0.98和1在顶上的构造函数中
     if (blank_score > opts_.blank_skip_thresh * opts_.blank_scale) {
+      // 记录日志信息，指示跳过了哪一帧及其分数。
       VLOG(3) << "skipping frame " << num_frames_ << " score " << blank_score;
+      // 设置标志is_last_frame_blank_为true，表示上一帧是空白帧。
       is_last_frame_blank_ = true;
+      // 将当前帧的对数概率保存到last_frame_prob_，以便后续可能使用。
       last_frame_prob_ = logp[i];
     } else {
+      // 如果当前帧不是空白帧，则进行正常的解码操作。不跳过当前帧，则找到当前帧的最佳符号（即具有最高对数概率的符号）。
       // Get the best symbol
+      // std::max_element返回指向最大元素的迭代器，减去起始迭代器得到索引。迭代器是什么？减掉是不是就是索引位置，相当于下标数字
+      // 是不是相当于从每个帧里挑出数字最大的值的角标？
       int cur_best =
           std::max_element(logp[i].begin(), logp[i].end()) - logp[i].begin();
       // Optional, adding one blank frame if we has skipped it in two same
       // symbols
+      // 如果当前最佳符号不是空白符号，并且上一帧是空白帧且与不为空的前一帧的最佳符号相同，则插入一个空白帧：
       if (cur_best != opts_.blank && is_last_frame_blank_ &&
           cur_best == last_best_) {
+        // 将上一帧的对数概率传递给解码器。
         decodable_.AcceptLoglikes(last_frame_prob_);
+        // 推进解码器状态。
         decoder_.AdvanceDecoding(&decodable_, 1);
+        // 更新已解码帧映射，记录插入的空白帧。
         decoded_frames_mapping_.push_back(num_frames_ - 1);
+        // 记录日志信息，指示在哪个符号处添加了空白帧。
         VLOG(2) << "Adding blank frame at symbol " << cur_best;
       }
+      // 更新last_best_为当前最佳符号。
       last_best_ = cur_best;
 
+      // 将当前帧的对数概率传递给解码器。
       decodable_.AcceptLoglikes(logp[i]);
+      // 推进解码器状态。
       decoder_.AdvanceDecoding(&decodable_, 1);
+      // 更新已解码帧映射，记录当前帧。
       decoded_frames_mapping_.push_back(num_frames_);
+      // 设置标志is_last_frame_blank_为false，表示当前帧不是空白帧。
       is_last_frame_blank_ = false;
     }
+    // 每处理完一帧后，增加全局帧计数num_frames_。
     num_frames_++;
   }
   // Get the best path
+  // 清空之前存储的输入序列、输出序列和似然值，确保在处理新结果时不会保留旧数据。
   inputs_.clear();
   outputs_.clear();
   likelihood_.clear();
+  // 如果已解码帧映射不为空，则说明至少有一帧被解码，可以获取最佳路径。如果没有解码任何帧，则直接跳过后续处理。
   if (decoded_frames_mapping_.size() > 0) {
+    // 如果有已解码的帧，则将inputs_、outputs_和likelihood_的大小调整为1，表示只处理一个结果（即最佳路径）。
     inputs_.resize(1);
     outputs_.resize(1);
     likelihood_.resize(1);
+    // 创建一个kaldi::Lattice对象lat。
     kaldi::Lattice lat;
+    // 调用decoder_.GetBestPath(&lat, true)从解码器中获取最佳路径，并将其存储在lat中。第二个参数true通常表示是否需要详细信息或清理资源。
     decoder_.GetBestPath(&lat, true);
     std::vector<int> alignment;
+    // 创建一个kaldi::LatticeWeight类型的weight来存储路径权重。
     kaldi::LatticeWeight weight;
     fst::GetLinearSymbolSequence(lat, &alignment, &outputs_[0], &weight);
     ConvertToInputs(alignment, &inputs_[0]);

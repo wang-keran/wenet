@@ -202,7 +202,7 @@ def get_args():
 
 def load_data(wav_file):
     sample = {}
-    wav_file = '/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/long.wav'
+    wav_file = '/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/mid.wav'
     # with io.BytesIO(wav_file) as file_obj:
     waveform, sample_rate = torchaudio.load(wav_file)
             # del wav_file

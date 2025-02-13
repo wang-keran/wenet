@@ -121,12 +121,14 @@ DecodeState AsrDecoder::AdvanceDecoding(bool block) {
     }
   }
   timer.Reset();
+  // 进行搜索解码
   searcher_->Search(ctc_log_probs);
   int search_time = timer.Elapsed();
   VLOG(3) << "forward takes " << forward_time << " ms, search takes "
           << search_time << " ms";
   UpdateResult();
 
+  // 到达语音端点,标志这段语音已经结束
   if (state != DecodeState::kEndFeats) {
     if (ctc_endpointer_->IsEndpoint(ctc_log_probs, DecodedSomething())) {
       VLOG(1) << "Endpoint is detected at " << num_frames_;

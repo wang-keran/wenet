@@ -390,12 +390,21 @@ class BaseEncoder(torch.nn.Module):
         assert self.static_chunk_size > 0 or self.use_dynamic_chunk
         # 获取下采样率，选择不进行子采样的情况，下采样率是1,作用是压缩输入的步长，减少计算量
         subsampling = self.embed.subsampling_rate
-        # 当前帧右侧的上下文长度（最远可以看到多远），0+1,保证最远只能看到当前帧，右侧上下文全都看不见
+        # 当前帧和右侧的上下文长度（最远可以看到多远），0+1,保证最远只能看到当前帧，右侧上下文全都看不见，加1是为了能看到第一个块的第一帧
         context = self.embed.right_context + 1  # Add current frame
+        # 如果不加当前帧，模型在处理每个 chunk 时，需要依赖当前帧的信息来做出准确的预测。如果 context 不包含当前帧，模型将无法正确处理当前帧的数据，从而影响解码的准确性。
+        # decoding_window 的计算不再包括当前帧，导致窗口大小与实际需求不符。例如，假设 decoding_chunk_size = 4，subsampling_rate = 4，right_context = 2，
+        # 则： [ \text{decoding_window} = (4 - 1) \times 4 + 2 = 3 \times 4 + 2 = 14 ] 这意味着窗口大小为 14 帧，但实际上是少了当前帧的信息。
         # 每次处理的步长，每次处理块大小*块数（要躲开下采样的帧），确保在每次前向传播时，新的输入块与之前的计算结果保持合理的重叠，从而充分利用缓存（如注意力缓存和卷积缓存），提高效率。
         stride = subsampling * decoding_chunk_size
-        # -1考虑历史帧，+context考虑右侧上下文，但是没有右侧上下文，只有一个当前帧
+        # -1减去context加上的当前帧，+context考虑右侧上下文，但是没有右侧上下文，只有一个当前帧，每4帧用1帧，第一个chunk的第一帧已经包含在context中了，不减去1的话
         decoding_window = (decoding_chunk_size - 1) * subsampling + context
+#         虽然代码中没有显式的 left_context 变量，但左侧上下文信息是通过以下方式隐式处理的：
+
+# 动态块掩码 (chunk_masks)：控制哪些帧是可以被当前帧看到的，包括左侧上下文。
+# 注意力机制中的缓存 (att_cache)：存储之前块的注意力键值对，作为左侧上下文信息使用。
+# 子采样和嵌入层 (embed)：通过重叠输入确保上下文信息的传递。
+# 逐块前向传播 (forward_chunk_by_chunk)：逐步处理每个块，并更新缓存，确保每个块的处理都考虑到之前的上下文信息。
         # 获取帧的数量
         num_frames = xs.size(1)
         # 初始化缓存存储中间结果，因为是中间结果，所以肯定是编码过的块
