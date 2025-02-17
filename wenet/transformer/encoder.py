@@ -295,6 +295,7 @@ class BaseEncoder(torch.nn.Module):
         elayers, cache_t1 = att_cache.size(0), att_cache.size(2)
         # 获取音频块大小
         chunk_size = xs.size(1)
+        print("forward_chunk中块大小为：",chunk_size)
         # attention_key_size 计算注意力键的大小，是之前的计算结果缓存大小加一块。
         attention_key_size = cache_t1 + chunk_size
         # 先去utils文件夹里找到对应的类，再去subsampling里面找，然后通过torch到embedding里找到需要的方法实现
@@ -342,6 +343,9 @@ class BaseEncoder(torch.nn.Module):
         #print("归一化后的音频：")
         #print(xs)
         print("使用了forward_chunk()方法444444444444444")
+         # 打印 hidden-dim
+        print(f"hidden-dim: {self._output_size}")
+
         # NOTE(xcsong): shape(r_att_cache) is (elayers, head, ?, d_k * 2),
         #   ? may be larger than cache_t1, it depends on required_cache_size
         # 拼接注意力缓存，CNN缓存，返回结果
@@ -426,10 +430,19 @@ class BaseEncoder(torch.nn.Module):
             end = min(cur + decoding_window, num_frames)
             # chunk_xs：从输入张量 xs 中提取当前块的数据。: 表示在其他维度上选择所有数据，cur:end 则选择当前块的帧范围。
             chunk_xs = xs[:, cur:end, :]
+            
+            # 打印 chunk_xs 的维度
+            print(f"chunk_xs 的维度: {chunk_xs.shape}")
+            
+            # 确认xs和y的维度是不是一样
             (y, att_cache,
              cnn_cache) = self.forward_chunk(chunk_xs, offset,
                                              required_cache_size, att_cache,
                                              cnn_cache)
+             
+            # 打印 y 的维度
+            print(f"y 的维度: {y.shape}")
+            
             outputs.append(y)
             offset += y.size(1)
         ys = torch.cat(outputs, 1)

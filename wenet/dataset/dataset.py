@@ -42,9 +42,9 @@ def Dataset(data_type,
     assert conf is not None
     assert data_type in ['raw', 'shard']
     # 根据 data_type，使用 WenetRawDatasetSource 或 WenetTarShardDatasetSource 来加载数据。
-    # cycle dataset
+    # cycle dataset，循环次数
     cycle = conf.get('cycle', 1)
-    # stage1 shuffle: source
+    # stage1 shuffle: source，将列表全部打乱，让数据有随机性，避免模型过拟合
     list_shuffle = conf.get('list_shuffle', True)
     list_shuffle_size = sys.maxsize
     if list_shuffle:

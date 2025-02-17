@@ -197,7 +197,7 @@ def init_model(args, configs):
     configs['model'] = model_type
     model, configs = init_speech_model(args, configs)
 
-    # 如果参数中指定了使用 LoRA，则调用 inject_lora_to_model 函数将 LoRA 注入到模型中。
+    # 如果参数中指定了使用 LoRA，则调用 inject_lora_to_model 函数将 LoRA 注入到模型中。Lora作用是什么
     if hasattr(args, 'use_lora') and args.use_lora:
         inject_lora_to_model(model, configs['lora_conf'])
 

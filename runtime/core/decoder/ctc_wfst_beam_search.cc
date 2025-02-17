@@ -92,19 +92,21 @@ void CtcWfstBeamSearch::Search(const std::vector<std::vector<float>>& logp) {
   for (int i = 0; i < logp.size(); i++) {
     // 计算当前帧中空白符号的概率分布.logp[i][opts_.blank]是对数概率，使用std::exp幂指数ex将其转换为线性概率。
     float blank_score = std::exp(logp[i][opts_.blank]);
-  // 如果空白符号的分数大于设定的阈值,则跳过当前帧,opts_.blank_skip_thresh * opts_.blank_scale都是设置好的，0.98和1在顶上的构造函数中
+  // 如果空白符号的分数大于设定的阈值,则跳过当前帧,opts_.blank_skip_thresh（空白符号跳过阈值） * opts_.blank_scale（空白符号概率的缩放因子）都是设置好的，0.98和1在顶上的构造函数中
+  // 大于这个值的话就跳过这一帧，说明空白部分在这个帧中过多了
     if (blank_score > opts_.blank_skip_thresh * opts_.blank_scale) {
       // 记录日志信息，指示跳过了哪一帧及其分数。
       VLOG(3) << "skipping frame " << num_frames_ << " score " << blank_score;
-      // 设置标志is_last_frame_blank_为true，表示上一帧是空白帧。
+      // 设置标志is_last_frame_blank_为true，表示上一帧是空白帧，在下一帧读取本帧时可以直接跳过。
+      // 记录当前帧处理后的状态，以便在处理下一帧时参考。
       is_last_frame_blank_ = true;
-      // 将当前帧的对数概率保存到last_frame_prob_，以便后续可能使用。
+      // 将当前帧的对数概率保存到last_frame_prob_，以便后续可能使用。可以用来恢复状态，或者插入空白帧，这个变量可以确保插入的空白帧或者恢复的空白帧有正确的对数概率
       last_frame_prob_ = logp[i];
     } else {
       // 如果当前帧不是空白帧，则进行正常的解码操作。不跳过当前帧，则找到当前帧的最佳符号（即具有最高对数概率的符号）。
       // Get the best symbol
-      // std::max_element返回指向最大元素的迭代器，减去起始迭代器得到索引。迭代器是什么？减掉是不是就是索引位置，相当于下标数字
-      // 是不是相当于从每个帧里挑出数字最大的值的角标？
+      // std::max_element返回指向最大元素的迭代器，减去起始迭代器得到索引，就是获得了中括号里的数字。迭代器功能与log[i][p]类似，但是迭代器是指针，减掉是不是就是索引位置，相当于下标数字
+      // 相当于提取出了最大概率的角标
       int cur_best =
           std::max_element(logp[i].begin(), logp[i].end()) - logp[i].begin();
       // Optional, adding one blank frame if we has skipped it in two same
@@ -112,11 +114,12 @@ void CtcWfstBeamSearch::Search(const std::vector<std::vector<float>>& logp) {
       // 如果当前最佳符号不是空白符号，并且上一帧是空白帧且与不为空的前一帧的最佳符号相同，则插入一个空白帧：
       if (cur_best != opts_.blank && is_last_frame_blank_ &&
           cur_best == last_best_) {
-        // 将上一帧的对数概率传递给解码器。
+        // 将上一帧的对数概率传递给解码器。last_frame_prob_是上一帧的对数概率，AcceptLoglikes方法将其传递给解码器,以便解码器可以处理这个插入的空白帧。
         decodable_.AcceptLoglikes(last_frame_prob_);
-        // 推进解码器状态。
+        // 推进解码器状态，使其重新插入空白帧,1表示只处理1帧。
         decoder_.AdvanceDecoding(&decodable_, 1);
-        // 更新已解码帧映射，记录插入的空白帧。
+        // 更新已解码帧映射，记录插入的空白帧。decoded_frames_mapping_ 是一个向量，用于记录哪些帧被实际解码。
+        // num_frames_ - 1 表示插入的是上一帧的位置（因为当前帧还没有增加到num_frames_ 中）。
         decoded_frames_mapping_.push_back(num_frames_ - 1);
         // 记录日志信息，指示在哪个符号处添加了空白帧。
         VLOG(2) << "Adding blank frame at symbol " << cur_best;

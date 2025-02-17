@@ -232,31 +232,50 @@ def main():
     if len(args.override_config) > 0:
         # wenet/utils/config.py
         # 这段代码的功能是更新配置字典，允许通过一系列指定的覆盖项来修改原有的配置。
-        # 读入原始字典，返回新字典
+        # 读入原始字典，返回新字典，将后面字典的参数覆盖前面的参数
         configs = override_config(configs, args.override_config)
 
-    # 读取数据集的配置文件
+    # 读取数据集的配置文件，复制一份测试集的配置文件
     test_conf = copy.deepcopy(configs['dataset_conf'])
 
+    # 设置测试集的配置文件，设置成102400，因为GPU版本显存保留1GB（1024000000）为了方便运算，
+    # 这些设置为false的参数全是用来训练的，在推理时反而会拖后腿
     test_conf['filter_conf']['max_length'] = 102400
     test_conf['filter_conf']['min_length'] = 0
     test_conf['filter_conf']['token_max_length'] = 102400
     test_conf['filter_conf']['token_min_length'] = 0
     test_conf['filter_conf']['max_output_input_ratio'] = 102400
     test_conf['filter_conf']['min_output_input_ratio'] = 0
+    # 禁用速度扰动、频谱增强、频谱剪裁、频谱替换、数据集洗牌、数据集排序、数据集循环、数据集列表洗牌
+    # 速度扰动在训练时增强鲁棒性，在识别时会拖后腿，所以识别禁用
     test_conf['speed_perturb'] = False
+    # 对频谱图进行随即扭曲遮挡增强范化能力，识别时没用还会拖后腿，所以识别禁用
     test_conf['spec_aug'] = False
+    # 训练时裁减来学习特征，识别时没必要
     test_conf['spec_sub'] = False
+    # 频谱替换是另一种数据增强技术，通过将频谱图中的某些部分替换为其他内容。
+    # 在推理或评估阶段禁用它，可以确保输入数据的真实性和一致性。
     test_conf['spec_trim'] = False
+    # 数据集洗牌会随机打乱数据顺序。在训练阶段，这有助于打破数据的顺序依赖性，
+    # 但在推理或评估阶段，禁用洗牌可以确保每次运行时数据的顺序一致，从而提高结果的可重复性。
     test_conf['shuffle'] = False
+    # 排序通常用于按某种标准（如长度）对数据进行排列，以便更高效地处理。
+    # 在推理或评估阶段禁用排序，可以确保数据按照原始顺序处理，避免因排序引入的偏差。
     test_conf['sort'] = False
+    # 在训练阶段，数据集可能会被多次循环使用以增加训练样本量。
+    # 但在推理或评估阶段，通常只需要遍历一次数据集即可。设置 cycle = 1 确保了这一点，避免了不必要的重复处理。
     test_conf['cycle'] = 1
+    # 禁用列表洗牌，确保每次运行时数据的顺序一致，从而提高结果的可重复性。
     test_conf['list_shuffle'] = False
+    # 禁用抖动，因为识别时没必要，抖动是在训练时添加细小噪音的训练方法，有助于训练时提高鲁棒性，识别时不需要
     if 'fbank_conf' in test_conf:
         test_conf['fbank_conf']['dither'] = 0.0
     elif 'mfcc_conf' in test_conf:
         test_conf['mfcc_conf']['dither'] = 0.0
+    # 设置批量处理类型为静态,静态批量处理意味着每个批次的大小是固定的，这有助于简化推理过程并提高效率。
     test_conf['batch_conf']['batch_type'] = "static"
+    # 设置批量大小,根据命令行参数 args.batch_size 设置批量大小。
+    # 批量大小可以根据硬件资源或性能需求灵活调整。通过从命令行参数中读取批量大小，可以在不同环境下优化推理性能。
     test_conf['batch_conf']['batch_size'] = args.batch_size
 
     # 初始化这个分词器，根据config配置文件来的
