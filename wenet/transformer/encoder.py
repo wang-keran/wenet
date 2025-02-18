@@ -390,7 +390,7 @@ class BaseEncoder(torch.nn.Module):
         """
         # 判断解码块数是否大于0,小于等于0不解码
         assert decoding_chunk_size > 0
-        # The model is trained by static or dynamic chunk确定必须使用动态块或者大于0的动态块
+        # The model is trained by static or dynamic chunk确定必须使用动态块或者大于0的静态块
         assert self.static_chunk_size > 0 or self.use_dynamic_chunk
         # 获取下采样率，选择不进行子采样的情况，下采样率是1,作用是压缩输入的步长，减少计算量
         subsampling = self.embed.subsampling_rate
@@ -409,7 +409,7 @@ class BaseEncoder(torch.nn.Module):
 # 注意力机制中的缓存 (att_cache)：存储之前块的注意力键值对，作为左侧上下文信息使用。
 # 子采样和嵌入层 (embed)：通过重叠输入确保上下文信息的传递。
 # 逐块前向传播 (forward_chunk_by_chunk)：逐步处理每个块，并更新缓存，确保每个块的处理都考虑到之前的上下文信息。
-        # 获取帧的数量
+        # 获取帧的数量（时间步长）
         num_frames = xs.size(1)
         # 初始化缓存存储中间结果，因为是中间结果，所以肯定是编码过的块
         att_cache: torch.Tensor = torch.zeros((0, 0, 0, 0), device=xs.device)
