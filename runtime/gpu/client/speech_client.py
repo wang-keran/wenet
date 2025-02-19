@@ -138,7 +138,7 @@ class StreamingSpeechClient(object):
                 chunk_samples = int(self.other_chunk_in_secs * sample_rate)
                 expect_input = np.zeros((1, chunk_samples), dtype=np.float32)
 
-            # 填充片段数据
+            # 填充片段数据，每次添加一块新的数据和原来识别过的所有数据进去
             expect_input[0][0:chunk_len] = seg
             # 准备输入数据，这是音频数据
             input0_data = expect_input
@@ -183,6 +183,7 @@ class StreamingSpeechClient(object):
             )
             # 处理最后一个片段并返回
             idx += 1
+            print("response的结果是：",response)
             # 获取响应结果，并通过 response.as_numpy("TRANSCRIPTS")[0].decode("utf-8") 解码出转录文本。
             result = response.as_numpy("TRANSCRIPTS")[0].decode("utf-8")
             # 输出结果，打印当前片段的索引和转录结果。

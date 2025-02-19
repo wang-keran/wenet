@@ -151,3 +151,5 @@ class TritonPythonModel:
                 output_tensors=[out0, out1])
             responses.append(inference_response)
         return responses
+
+# 总结:通过triton进行数据传输,kaldi.fbank计算特征提取,将特征提取的结果返回给triton

@@ -37,8 +37,11 @@ from wenet.utils.common import TORCH_NPU_AVAILABLE  # noqa just ensure to check 
 # 添加参数
 def get_args():
     parser = argparse.ArgumentParser(description='recognize with your model')
-    parser.add_argument('--config', required=True, help='config file')
-    parser.add_argument('--test_data', required=True, help='test data file')
+    parser.add_argument('--config', help='config file'
+    ,default="/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/train.yaml"
+)
+    parser.add_argument('--test_data',  help='test data file',
+                        default = "inference/data.list")
     parser.add_argument('--data_type',
                         default='raw',
                         choices=['raw', 'shard'],
@@ -62,7 +65,9 @@ def get_args():
                         type=int,
                         help='num of subprocess workers for reading')
     # 在init_model文件里选择这个参数
-    parser.add_argument('--checkpoint', required=True, help='checkpoint model')
+    parser.add_argument('--checkpoint', help='checkpoint model',
+        default="/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/final.pt"
+)
     # 在context_graph.py中选择这个参数
     parser.add_argument('--beam_size',
                         type=int,
@@ -79,7 +84,8 @@ def get_args():
                         default=0.0,
                         help='blank penalty')
     # 结果存储路径
-    parser.add_argument('--result_dir', required=True, help='asr result file')
+    parser.add_argument('--result_dir',  help='asr result file'
+                        ,default="result")
     # 批次大小，dataset用了，根据配置进行静态批量处理、桶批量处理或动态批量处理。
     parser.add_argument('--batch_size',
                         type=int,
@@ -375,6 +381,7 @@ def main():
                     blank_penalty=args.blank_penalty,
                     length_penalty=args.length_penalty,
                     infos=infos)
+                print("返回的结果是：", results)
                 # decode 函数返回的是一个字典，包含所请求解码方法的名称及其对应的解码结果。
                 for i, key in enumerate(keys):
                     for mode, hyps in results.items():
@@ -383,6 +390,7 @@ def main():
                         # 根据ID列表重建原始文本，返回组合好的文字和帧
                         line = '{} {}'.format(key,
                                               tokenizer.detokenize(tokens)[0])
+                        print("解析出的一句话是：",line)
                         # 记录日志信息，并写入文件
                         logging.info('{} {}'.format(mode.ljust(max_format_len),
                                                     line))

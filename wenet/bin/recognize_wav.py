@@ -453,14 +453,14 @@ def load_data_test():
             blank_id=blank_id,
             blank_penalty=args.blank_penalty,
             length_penalty=args.length_penalty)
-        # print(results.items())
+        print("返回结果是：",results.items())
         for i, key in enumerate(keys):
             for mode, hyps in results.items(): #dict:[keys，value]
                 tokens = hyps[i].tokens
                 #time.sleep(3)      # 输出调试的
                 #解码结果，输出的是keys和语音识别文本
                 line = '{} {}'.format(key, tokenizer.detokenize(tokens)[0]) 
-                # print(line)
+                print("一行数据是",line)
                 logging.info('{} {}'.format(mode.ljust(max_format_len), #解码方法
                                             line))
                 # logging.info('{} {}'.format('result:',line))
