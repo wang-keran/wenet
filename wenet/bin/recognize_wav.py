@@ -381,7 +381,7 @@ def load_data_test():
     start_read_wav = time.perf_counter()
     sample = load_data(wav_file)
     tokenizer = init_tokenizer(configs)
-    sample  = tokenize(sample,tokenizer)
+    # sample  = tokenize(sample,tokenizer)
     sample = resample(sample, resample_rate=16000)
     
     

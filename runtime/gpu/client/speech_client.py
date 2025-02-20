@@ -112,7 +112,8 @@ class StreamingSpeechClient(object):
         wav_segs = []
         i = 0
         # 分割音频波形存在wav_segs里
-        # 这段代码的功能是将一个音频波形（waveform）分割成多个片段（wav_segs），根据指定的时间长度来确定每个片段的长度。
+        # 这段代码的功能是将一个音频波形（waveform）分割成多个片段（wav_segs），
+        # 根据指定的时间长度来确定每个片段的长度。
         while i < len(waveform):
             if i == 0:
                 stride = int(self.first_chunk_in_secs * sample_rate)
