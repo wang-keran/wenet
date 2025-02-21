@@ -288,7 +288,7 @@ def main():
     # 传入配置字典，返回一个分词器
     tokenizer = init_tokenizer(configs)
     # 从原始数据变成数据集返回
-    # 传入数据类型，原数据集，分词器，训练配置，返回一个可以被模型理解的数据集字典
+    # 传入数据类型，原数据集，分词器，训练配置，返回一个可以被模型理解的数据集字典，这里面有特征提取，分词，重采样，速度扰动，裁剪学习特征，批处理等等
     test_dataset = Dataset(args.data_type,
                            args.test_data,
                            tokenizer,

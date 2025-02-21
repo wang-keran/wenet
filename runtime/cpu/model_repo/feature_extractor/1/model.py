@@ -219,3 +219,35 @@ class TritonPythonModel:
             
             responses.append(inference_response)
         return responses
+        #  # 提取特征
+    #         feature = self.feature_extractor([cur_wav])[0]
+    #         feature = feature.to(self.output0_dtype)
+
+    #         # 计算特征长度
+    #         feature_len = feature.shape[0]
+
+    #         # 生成输出张量
+    #         chunk_output = feature.unsqueeze(0)  # [1, decoding_window, feature_size]
+    #         offset_output = torch.tensor([0], dtype=self.output1_dtype)  # [1]
+    #         att_cache_output = torch.zeros(self.num_blocks, self.head, feature_len, self.d_k, dtype=self.output2_dtype)
+    #         cnn_cache_output = torch.zeros(self.num_blocks, 1, self.output_size, self.cnn_module_kernel, dtype=self.output3_dtype)
+
+    #         # 将张量转换为DLpack格式
+    #         chunk_dlpack = to_dlpack(chunk_output)
+    #         offset_dlpack = to_dlpack(offset_output)
+    #         att_cache_dlpack = to_dlpack(att_cache_output)
+    #         cnn_cache_dlpack = to_dlpack(cnn_cache_output)
+
+    #         # 封装为 pb_utils.Tensor 对象
+    #         chunk_tensor = pb_utils.Tensor("chunk", chunk_dlpack)
+    #         offset_tensor = pb_utils.Tensor("offset", offset_dlpack)
+    #         att_cache_tensor = pb_utils.Tensor("att_cache", att_cache_dlpack)
+    #         cnn_cache_tensor = pb_utils.Tensor("cnn_cache", cnn_cache_dlpack)
+
+    #         # 创建推理响应返回的 Tensor 对象
+    #         inference_response = pb_utils.InferenceResponse(
+    #             output_tensors=[chunk_tensor, offset_tensor, att_cache_tensor, cnn_cache_tensor])
+
+    #         responses.append(inference_response)
+
+    # return responses

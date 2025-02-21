@@ -4,7 +4,7 @@ from google.protobuf import text_format
 #输出有问题，结构错误
 
 # 加载 ONNX 模型
-onnx_model = onnx.load("/home/wangkeran/桌面/WENET/test-cpu-non-streaming-output/decoder.onnx")
+onnx_model = onnx.load("/home/wangkeran/桌面/WENET/test-cpu-non-streaming-output/encoder.onnx")
 
 # 获取输入和输出的信息
 inputs = onnx_model.graph.input

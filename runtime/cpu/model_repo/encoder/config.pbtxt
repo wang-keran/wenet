@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 编码
+# 编码,attention_rescoring和特征提取需要进行修改，特征提取的输出要获取chunk,offset,att_cache,cnn_cache四个选项
 
 name: "encoder"
 backend: "onnxruntime"

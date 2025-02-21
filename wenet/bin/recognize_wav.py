@@ -381,7 +381,17 @@ def load_data_test():
     start_read_wav = time.perf_counter()
     sample = load_data(wav_file)
     tokenizer = init_tokenizer(configs)
-    # sample  = tokenize(sample,tokenizer)
+    # 分词器不能删除，会报错：Traceback (most recent call last):
+    #   File "/home/wangkeran/桌面/WENET/wenet/wenet/bin/recognize_wav.py", line 479, in <module>
+    #     load_data_test()
+    #   File "/home/wangkeran/桌面/WENET/wenet/wenet/bin/recognize_wav.py", line 396, in load_data_test
+    #     sample = padding(sample)
+    #              ^^^^^^^^^^^^^^^
+    #   File "/home/wangkeran/桌面/WENET/wenet/wenet/bin/recognize_wav.py", line 319, in padding
+    #     torch.tensor(sample[i]['label'], dtype=torch.int64) for i in order
+    #                  ~~~~~~~~~^^^^^^^^^
+    # KeyError: 'label'
+    sample  = tokenize(sample,tokenizer)
     sample = resample(sample, resample_rate=16000)
     
     
