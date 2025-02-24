@@ -39,24 +39,23 @@ parameters [
 input [
   {
     name: "encoder_out"
-    data_type: TYPE_FP16
-    dims: [-1, 256] # [-1, feature_size]
+    data_type: TYPE_FP32
+    dims: [0,0,256] # [-1, feature_size]  # 修改为与 encoder 的 output 一致
   },
   {
     name: "encoder_out_lens"
-    data_type: TYPE_INT32
-    dims: [1]
-    reshape: { shape: [ ] }
+    data_type: TYPE_INT64
+    dims: [0]   # 修改为与 decoder 的 hyps_lens 类似
   },
   {
     name: "batch_log_probs"
     data_type: TYPE_FP16
-    dims: [-1, 10] #[-1, beam_size]
+    dims: [-1, 4233] #[-1, beam_size]
   },
   {
     name: "batch_log_probs_idx"
     data_type: TYPE_INT64
-    dims: [-1, 10]
+    dims: [-1, 4233]
   }
 ]
 # 最后一步输出的

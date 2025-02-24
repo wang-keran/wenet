@@ -54,22 +54,31 @@ class TritonPythonModel:
         # 获取输出的张量的类型（speech）
         # Get OUTPUT0 configuration
         output0_config = pb_utils.get_output_config_by_name(
-            model_config, "speech")
+            model_config, "chunk")
         # Convert Triton types to numpy types，将Triton类型转换为numpy类型
         output0_dtype = pb_utils.triton_string_to_numpy(
             output0_config['data_type'])
-        if output0_dtype == np.float32:
-            self.output0_dtype = torch.float32
-        else:
-            self.output0_dtype = torch.float16
 
         # 获取输出的张量的类型（speech）
         # Get OUTPUT1 configuration
         output1_config = pb_utils.get_output_config_by_name(
-            model_config, "speech_lengths")
+            model_config, "offset")
         # Convert Triton types to numpy types，将Triton类型转换为numpy类型
         self.output1_dtype = pb_utils.triton_string_to_numpy(
             output1_config['data_type'])
+        
+        # 获取输出的张量的类型（att_cache）
+        output2_config = pb_utils.get_output_config_by_name(
+            model_config, "att_cache")
+        self.output2_dtype = pb_utils.triton_string_to_numpy(
+            output2_config['data_type'])
+
+        # 获取输出的张量的类型（cnn_cache）
+        output3_config = pb_utils.get_output_config_by_name(
+            model_config, "cnn_cache")
+        self.output3_dtype = pb_utils.triton_string_to_numpy(
+            output3_config['data_type'])
+
 
         # 获取帧移长度等配置信息
         params = self.model_config['parameters']
@@ -177,45 +186,45 @@ class TritonPythonModel:
             # we will follow this issue and now temporarily put it on cpu
             speech = speech.cpu()
             speech_lengths = speech_lengths.cpu()
+            
+            batch = 1
+            decoding_window = speech.shape[1]  # 动态获取 decoding_window
+            feature_size = self.feature_size
+            offset = 0
+            num_blocks = 12
+            head = 4
+            required_cache_size = decoding_window  # 根据实际情况调整
+            d_k = 128
+            output_size = 256
+            cnn_module_kernel = 7
+           
             out0 = pb_utils.Tensor.from_dlpack("speech", to_dlpack(speech))
             out1 = pb_utils.Tensor.from_dlpack("speech_lengths",
                                                to_dlpack(speech_lengths))
             # inference_response = pb_utils.InferenceResponse(
             #     output_tensors=[out0, out1])
             
-            # 新的输出  #数字有了，往里面写啥？
-            batch = 1
-            decoding_window=0
-            feature_size=80
-            offset=0
-            num_blocks=12
-            head=4
-            required_cache_size=0
-            d_k=128
-            output_size=256
-            cnn_module_kernel=7
-            
             # 创建张量
-            chunk_output=torch.zeros(batch,decoding_window,feature_size,dtype=torch.float32)
-            offset_output=torch.zeros(offset,dtype=torch.int64)
-            att_cache_out=torch.zeros(batch,num_blocks,head,required_cache_size,d_k,dtype=torch.float32)
-            cnn_cache=torch.zeros(num_blocks,batch,output_size,cnn_module_kernel,dtype=torch.float32)
-            
+            chunk_output = torch.zeros(batch, decoding_window, feature_size, dtype=self.output0_dtype)
+            offset_output = torch.zeros(offset, dtype=self.output1_dtype)
+            att_cache_out = torch.zeros(batch, num_blocks, head, required_cache_size, d_k, dtype=self.output2_dtype)
+            cnn_cache = torch.zeros(num_blocks, batch, output_size, cnn_module_kernel, dtype=self.output3_dtype)
+        
             # 将张量转换为DLpack格式
-            chunk_dlpack=to_dlpack(chunk_output)
-            offset_dlpack=to_dlpack(offset_output)
-            att_cache_dlpack=to_dlpack(att_cache_out)
-            cnn_cache_dlpack=to_dlpack(cnn_cache)
-            
+            chunk_dlpack = to_dlpack(chunk_output)
+            offset_dlpack = to_dlpack(offset_output)
+            att_cache_dlpack = to_dlpack(att_cache_out)
+            cnn_cache_dlpack = to_dlpack(cnn_cache)
+        
             # 封装为 pb_utils.Tensor 对象
-            chunk_tensor=pb_utils.Tensor("chunk",chunk_dlpack)
-            offset_tensor=pb_utils.Tensor("offset",offset_dlpack)
-            att_cache_tensor=pb_utils.Tensor("att_cache",att_cache_dlpack)
-            cnn_cache_tensor=pb_utils.Tensor("cnn_cache",cnn_cache_dlpack)
+            chunk_tensor = pb_utils.Tensor("chunk", chunk_dlpack)
+            offset_tensor = pb_utils.Tensor("offset", offset_dlpack)
+            att_cache_tensor = pb_utils.Tensor("att_cache", att_cache_dlpack)
+            cnn_cache_tensor = pb_utils.Tensor("cnn_cache", cnn_cache_dlpack)
             
             # 创建推理响应返回的 Tensor 对象
-            inference_response=pb_utils.InferenceResponse(
-                output_tensors=[chunk_tensor,offset_tensor,att_cache_tensor,cnn_cache_tensor])
+            inference_response = pb_utils.InferenceResponse(
+                output_tensors=[chunk_tensor, offset_tensor, att_cache_tensor, cnn_cache_tensor])
             
             responses.append(inference_response)
         return responses
