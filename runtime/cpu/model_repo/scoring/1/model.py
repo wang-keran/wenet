@@ -22,6 +22,7 @@ from swig_decoders import ctc_beam_search_decoder_batch, \
 import json
 import os
 import yaml
+import torch
 
 # 这个模型文件的输入输出是不是也得改？模型本身是不是也得改？因为decoder.onnx和encoder.onnx输入输出已经不一样了，目前代码是GPU直接粘贴过来的，和pbtxt匹配
 
@@ -58,16 +59,15 @@ class TritonPythonModel:
             output0_config['data_type'])
 
         # Get INPUT configuration
-        batch_log_probs = pb_utils.get_input_config_by_name(
-            model_config, "batch_log_probs")
-        self.beam_size = batch_log_probs['dims'][-1]
-
         encoder_config = pb_utils.get_input_config_by_name(
-            model_config, "encoder_out")
+            model_config, "output")
         self.data_type = pb_utils.triton_string_to_numpy(
             encoder_config['data_type'])
-
         self.feature_size = encoder_config['dims'][-1]
+
+        probs_config = pb_utils.get_input_config_by_name(   # 这里相当于gpu版本的ctc_log_probs，可以转换为beam_log_probs和beam_log_probs_idx
+            model_config, "probs")
+        self.beam_size = probs_config['dims'][-1]
 
         self.lm = None
         self.hotwords_scorer = None
@@ -161,6 +161,8 @@ class TritonPythonModel:
             configs = yaml.load(fin, Loader=yaml.FullLoader)
         return configs
 
+
+    # decoder.onnx函数只负责计算正向和反向的得分，具体的计算要这两个乘对应的概率加上ctc权重乘以概率才是最终结果
     def execute(self, requests):
         """`execute` must be implemented in every Python model. `execute`
         function receives a list of pb_utils.InferenceRequest as the only
@@ -189,7 +191,7 @@ class TritonPythonModel:
         # required.
 
         batch_encoder_out, batch_encoder_lens = [], []
-        batch_log_probs, batch_log_probs_idx = [], []
+        batch_log_probs = []
         batch_count = []
         batch_root = TrieVector()
         batch_start = []
@@ -198,27 +200,28 @@ class TritonPythonModel:
         encoder_max_len = 0
         hyps_max_len = 0
         total = 0
+        # 批次是1的情况下只循环一次，只有一条音频的非流式语音识别就是这种情况
         for request in requests:
             # Perform inference on the request and append it to responses list...
-            in_0 = pb_utils.get_input_tensor_by_name(request, "encoder_out")
+            in_0 = pb_utils.get_input_tensor_by_name(request, "output")
             in_1 = pb_utils.get_input_tensor_by_name(request,
-                                                     "encoder_out_lens")
-            in_2 = pb_utils.get_input_tensor_by_name(request,
-                                                     "batch_log_probs")
-            in_3 = pb_utils.get_input_tensor_by_name(request,
-                                                     "batch_log_probs_idx")
+                                                     "probs")
+            
+            batch_log_probs,batch_log_probs_idx = torch.topk(in_1,self.beam_size,dim=2) #修改一下中间的10,不一定是正确的beam_size
 
             batch_encoder_out.append(in_0.as_numpy())
             encoder_max_len = max(encoder_max_len,
                                   batch_encoder_out[-1].shape[1])
 
-            cur_b_lens = in_1.as_numpy()
-            batch_encoder_lens.append(cur_b_lens)
-            cur_batch = cur_b_lens.shape[0]
-            batch_count.append(cur_batch)
+            # 这里有问题，因为这个不是encoder_out_lens，这里是ctc_log_probs,差root和start，差在encoder_out_lens没有
+            # cur_b_lens = in_1.as_numpy()
+            # batch_encoder_lens.append(cur_b_lens)
+            # cur_batch = cur_b_lens.shape[0]
+            # batch_count.append(cur_batch)
 
-            cur_b_log_probs = in_2.as_numpy()
-            cur_b_log_probs_idx = in_3.as_numpy()
+            # 这两个还需要转换成numpy吗？
+            cur_b_log_probs = batch_log_probs.as_numpy()
+            cur_b_log_probs_idx = batch_log_probs_idx.as_numpy()
             for i in range(cur_batch):
                 cur_len = cur_b_lens[i]
                 cur_probs = cur_b_log_probs[i][
@@ -231,6 +234,16 @@ class TritonPythonModel:
                 batch_root.append(root_dict[total])
                 batch_start.append(True)
                 total += 1
+
+        # 这里是encoder_out_lens的原本计算方法，后面需要根据model.py修改，因为encoder_out不一样
+        # 对 encoder_out 在特征维度上求和，得到形状为 (B, T) 的张量
+        # encoder_out_sum = encoder_out.sum(dim=-1)
+
+        # # 检查每个时间步的和是否大于零，得到布尔张量
+        # encoder_out_mask = encoder_out_sum > 0
+
+        # # 对布尔张量在时间维度上求和，得到每个批次的有效时间步数
+        # encoder_out_lens = encoder_out_mask.sum(dim=-1)
 
         score_hyps = ctc_beam_search_decoder_batch(
             batch_log_probs,
@@ -292,6 +305,7 @@ class TritonPythonModel:
                     in_ctc_score[st + i][j] = all_ctc_score.pop(0)
             st += b
         in_encoder_out_lens = np.expand_dims(in_encoder_out_lens, axis=1)
+        # hyps [0,0],hyps_lens [0],encoder_out [1,0,256]
         in_tensor_0 = pb_utils.Tensor("encoder_out", in_encoder_out)
         in_tensor_1 = pb_utils.Tensor("encoder_out_lens", in_encoder_out_lens)
         in_tensor_2 = pb_utils.Tensor("hyps_pad_sos_eos", in_hyps_pad_sos_eos)

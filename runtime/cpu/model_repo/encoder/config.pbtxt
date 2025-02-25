@@ -48,7 +48,7 @@ output [
   {
     name: "output"
     data_type: TYPE_FP32
-    dims: [0, 0, 256]
+    dims: [0, 0, 256]   # [batch, time_steps, feature_size]
   },
   {
     name: "r_att_cache"

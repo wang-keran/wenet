@@ -38,24 +38,23 @@ parameters [
 # 这里需要改，现在encoder的输出变成了output:dims[0,0,256],r_att_cache:[12, 4, 0, 128],r_cnn_cache:[12, 1, 256, 0]
 input [
   {
-    name: "encoder_out"
+    name: "output"
     data_type: TYPE_FP32
-    dims: [0,0,256] # [-1, feature_size]  # 修改为与 encoder 的 output 一致
+    dims: [0, 0, 256]
   },
   {
-    name: "encoder_out_lens"
-    data_type: TYPE_INT64
-    dims: [0]   # 修改为与 decoder 的 hyps_lens 类似
+    name: "r_att_cache"
+    data_type: TYPE_FP32
+    dims: [12, 4, 0, 128] # 第二个是浮动维度，时间的缓存步数，但是前面这四个不知道是什么
   },
   {
-    name: "batch_log_probs"
-    data_type: TYPE_FP16
-    dims: [-1, 4233] #[-1, beam_size]
+    name: "r_cnn_cache"
+    data_type: TYPE_FP32
+    dims: [12, 1, 256, 0]
   },
   {
-    name: "batch_log_probs_idx"
-    data_type: TYPE_INT64
-    dims: [-1, 4233]
+    name: "probs"           # 这里可能是ctc_log_probs,#(batch_size, time_steps, vocab_size) 批次大小、时间步数、字符集大小。
+    dims: [1, 0, 4233]
   }
 ]
 # 最后一步输出的

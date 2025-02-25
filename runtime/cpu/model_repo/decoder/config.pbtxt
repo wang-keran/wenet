@@ -32,7 +32,7 @@ input [
     dims: [ 0 ]
   },
   {
-    name: "encoder_out"
+    name: "encoder_out"     # encoder中的output输出
     data_type: TYPE_FP32
     format: FORMAT_NONE
     dims: [ 1, 0, 256 ]

@@ -67,6 +67,15 @@ class Encoder(torch.nn.Module):
             beam_log_probs: B x T x beam_size
             beam_log_probs_idx: B x T x beam_size
         """
+        # 对 encoder_out 在特征维度上求和，得到形状为 (B, T) 的张量
+        # encoder_out_sum = encoder_out.sum(dim=-1)
+
+        # # 检查每个时间步的和是否大于零，得到布尔张量
+        # encoder_out_mask = encoder_out_sum > 0
+
+        # # 对布尔张量在时间维度上求和，得到每个批次的有效时间步数
+        # encoder_out_lens = encoder_out_mask.sum(dim=-1)
+        
         # 进入encoder的forward函数中，获取输出和掩码
         encoder_out, encoder_mask = self.encoder(speech, speech_lengths, -1,
                                                  -1)

@@ -30,7 +30,7 @@ output [
   {
     name: "probs"
     data_type: TYPE_FP32
-    dims: [ 1, 0, 4233 ]
+    dims: [ 1, 0, 4233 ]  #(batch_size, time_steps, vocab_size) 批次大小、时间步数、字符集大小。
   }
 ]
 

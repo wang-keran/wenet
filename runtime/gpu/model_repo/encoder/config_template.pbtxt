@@ -36,7 +36,7 @@ output [
   {
     name: "encoder_out"
     data_type: TYPE_#DTYPE
-    dims: [-1, #encoder_output_size] # [-1, feature_size]
+    dims: [-1, #encoder_output_size] # [-1, feature_size]，分别为批次大小和特征维度
   },
   {
     name: "encoder_out_lens"
