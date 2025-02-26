@@ -232,7 +232,7 @@ class TritonPythonModel:
             in_3 = pb_utils.get_input_tensor_by_name(request,
                                                      "batch_log_probs_idx")
 
-            batch_encoder_out.append(in_0.as_numpy())
+            batch_encoder_out.append(in_0.as_numpy())   # batch,feature_size，批次大小和特征维度
             encoder_max_len = max(encoder_max_len,
                                   batch_encoder_out[-1].shape[1])
 

@@ -203,21 +203,40 @@ class TritonPythonModel:
         # 批次是1的情况下只循环一次，只有一条音频的非流式语音识别就是这种情况
         for request in requests:
             # Perform inference on the request and append it to responses list...
-            in_0 = pb_utils.get_input_tensor_by_name(request, "output")
+            in_0 = pb_utils.get_input_tensor_by_name(request, "output") # 多了时间维度T，中间那个变量
             in_1 = pb_utils.get_input_tensor_by_name(request,
                                                      "probs")
             
             batch_log_probs,batch_log_probs_idx = torch.topk(in_1,self.beam_size,dim=2) #修改一下中间的10,不一定是正确的beam_size
 
+            encoder_out_lens=0
+            output_batch_size,output_time_step,output_feature_size=in_0.shape
+            # 如果批次大小或时间步数为 0，直接返回全零张量
+            if output_batch_size==0 or output_time_step==0:
+                encoder_out_lens = 0
+                raise pb_utils.TritonModelException("The input tensor is empty.")
+            # 对特征维度 F 求和，得到 (B, T)
+            encoder_out_sum = in_0.sum(dim=-1)       # dim=-1 表示最后一个维度
+            # 检查每个时间步的和是否大于 0，得到 (B, T) 的布尔张量
+            encoder_out_mask = encoder_out_sum > 0
+            # 对时间维度 T 求和，得到 (B,)
+            encoder_out_lens = encoder_out_mask.sum(dim=-1)
+
+            # 新的decoder返回score和r_score，需要回来计算最终的得分,reverse_weight=0.3，这个与模型相关，从train.yaml中找到
+            # 还差ctc_scores[i]和ctc_weight这两个变量,ctc_weight=0.3，这个从预训练模型的参数中找到
+        
+            
             batch_encoder_out.append(in_0.as_numpy())
+            # 这里相对于之前有修改，因为中间多加了时间步为第二维度，但是我们需要第三维度特征维度最大值，
+            # 所以把shape[1]改成shape[2],batch_encoder_out[-1].shape[2]，代表取出最新存入数据的第三维度
             encoder_max_len = max(encoder_max_len,
-                                  batch_encoder_out[-1].shape[1])
+                                  batch_encoder_out[-1].shape[2])
 
             # 这里有问题，因为这个不是encoder_out_lens，这里是ctc_log_probs,差root和start，差在encoder_out_lens没有
-            # cur_b_lens = in_1.as_numpy()
-            # batch_encoder_lens.append(cur_b_lens)
-            # cur_batch = cur_b_lens.shape[0]
-            # batch_count.append(cur_batch)
+            cur_b_lens = encoder_out_lens.as_numpy()
+            batch_encoder_lens.append(cur_b_lens)
+            cur_batch = cur_b_lens.shape[0]
+            batch_count.append(cur_batch)
 
             # 这两个还需要转换成numpy吗？
             cur_b_log_probs = batch_log_probs.as_numpy()
@@ -235,16 +254,8 @@ class TritonPythonModel:
                 batch_start.append(True)
                 total += 1
 
-        # 这里是encoder_out_lens的原本计算方法，后面需要根据model.py修改，因为encoder_out不一样
-        # 对 encoder_out 在特征维度上求和，得到形状为 (B, T) 的张量
-        # encoder_out_sum = encoder_out.sum(dim=-1)
-
-        # # 检查每个时间步的和是否大于零，得到布尔张量
-        # encoder_out_mask = encoder_out_sum > 0
-
-        # # 对布尔张量在时间维度上求和，得到每个批次的有效时间步数
-        # encoder_out_lens = encoder_out_mask.sum(dim=-1)
-
+        # 返回路径的总概率（总得分）和路径的解码结果，按总概率从高到底排序，无需再排序了，只返回了前beam_size个路径
+        # 返回的结果数量和批次大小batch_size相同
         score_hyps = ctc_beam_search_decoder_batch(
             batch_log_probs,
             batch_log_probs_idx,
@@ -262,6 +273,7 @@ class TritonPythonModel:
         max_seq_len = 0
         for seq_cand in score_hyps:
             # if candidates less than beam size
+            # 现在还差hyps,hyps_lens的运算，准备给decoder输入
             if len(seq_cand) != self.beam_size:
                 seq_cand = list(seq_cand)
                 seq_cand += (self.beam_size - len(seq_cand)) * [(-float("INF"),
@@ -323,6 +335,9 @@ class TritonPythonModel:
             requested_output_names=['best_index'],
             inputs=input_tensors)
 
+        # 新的decoder返回score和r_score，需要回来计算最终的得分,reverse_weight=0.3，这个与模型相关，从train.yaml中找到
+        #还差ctc_scores[i]和ctc_weight这两个变量,ctc_weight=0.3，这个从预训练模型的参数中找到
+        
         inference_response = inference_request.exec()
         if inference_response.has_error():
             raise pb_utils.TritonModelException(
