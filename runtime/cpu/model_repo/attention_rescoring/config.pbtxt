@@ -64,12 +64,20 @@ ensemble_scheduling {
       value: "WAV_LENS"
     }
     output_map {
-      key: "speech"
-      value: "SPEECH"
+      key: "chunk"
+      value: "CHUNK"
     }
     output_map {
-      key: "speech_lengths"
-      value: "SPEECH_LENGTHS"
+      key: "offset"
+      value: "OFFSET"
+    }
+    output_map {
+      key: "att_cache"
+      value: "ATT_CACHE"
+    }
+    output_map {
+      key: "cnn_cache"
+      value: "CNN_CACHE"
     }
    },
    # 最新编码器模型
@@ -78,58 +86,72 @@ ensemble_scheduling {
     model_version: -1
     # 输入特征提取后的音频
     input_map {
-      key: "speech"
-      value: "SPEECH"
+      key: "chunk"
+      value: "CHUNK"
     }
     # 输入特征提取后的音频长度（帧或者毫秒）
     input_map {
-      key: "speech_lengths"
-      value: "SPEECH_LENGTHS"
+      key: "offset"
+      value: "OFFSET"
+    }
+    input_map {
+      key: "att_cache"
+      value: "ATT_CACHE"
+    }
+    input_map {
+      key: "cnn_cache"
+      value: "CNN_CACHE"
     }
     # 输出编码后的中间表示
     output_map {
-      key: "encoder_out"
-      value: "encoder_out"
+      key: "output"
+      value: "output"
+    }
+    output_map {
+      key: "r_att_cache"
+      value: "r_att_cache"
     }
     # 输出编码后序列的长度
     output_map {
-      key: "encoder_out_lens"
-      value: "encoder_out_lens"
-    }
-    # 束搜索解码的概率：束搜索的概率是通过在每个时间步选择概率最高的几个候选词，并在每个时间步继续扩展这些候选，最终选择整个序列的总体概率最高的假设来实现的
-    output_map {
-        key: "beam_log_probs"
-        value: "beam_log_probs"
-    }
-    # 束搜索解码的概率索引
-    output_map {
-        key: "beam_log_probs_idx"
-        value: "beam_log_probs_idx"
+      key: "r_cnn_cache"
+      value: "r_cnn_cache"
     }
   },
+  {
+    model_name: "ctc"
+    model_version: -1
+    input_map {
+      key: "hidden"
+      value: "hidden"
+    }
+    output_map {
+      key: "probs"
+      value: "probs"
+    }
+  }
   # 最新版scoring
   {
       model_name: "scoring"
       model_version: -1
       # 接收编码器的输出作为输入
       input_map {
-          key: "encoder_out"
-          value: "encoder_out"
+          key: "output"
+          value: "output"
       }
       # 接收编码器的输出长度作为输入
       input_map {
-          key: "encoder_out_lens"
-          value: "encoder_out_lens"
+          key: "r_att_cache"
+          value: "r_att_cache"
       }
       # 接受束搜索解码的概率作为输入，改名为batch_log_probs：迭代过的束搜索解码的概率
       input_map {
-          key: "batch_log_probs"
-          value: "beam_log_probs"
+          key: "r_cnn_cache"
+          value: "r_cnn_cache"
       }
       # 接受束搜索解码的概率索引作为输入，改名为batch_log_probs_idx：迭代过的束搜索解码的概率索引
       input_map {
-          key: "batch_log_probs_idx"
-          value: "beam_log_probs_idx"
+          key: "probs"
+          value: "probs"
       }
       # 输出最终序列
       output_map {
