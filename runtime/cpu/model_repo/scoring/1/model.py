@@ -24,6 +24,9 @@ import os
 import yaml
 import torch
 
+from typing import List, Tuple
+import math
+
 # 这个模型文件的输入输出是不是也得改？模型本身是不是也得改？因为decoder.onnx和encoder.onnx输入输出已经不一样了，目前代码是GPU直接粘贴过来的，和pbtxt匹配
 
 
@@ -162,6 +165,99 @@ class TritonPythonModel:
         return configs
 
 
+    def pad_list(self, xs: List[torch.Tensor], pad_value: int):
+        """Perform padding for the list of tensors.
+
+        Args:
+            xs (List): List of Tensors [(T_1, `*`), (T_2, `*`), ..., (T_B, `*`)].
+            pad_value (float): Value for padding.
+
+        Returns:
+            Tensor: Padded tensor (B, Tmax, `*`).
+
+        Examples:
+            >>> x = [torch.ones(4), torch.ones(2), torch.ones(1)]
+            >>> x
+            [tensor([1., 1., 1., 1.]), tensor([1., 1.]), tensor([1.])]
+            >>> self.pad_list(x, 0)
+            tensor([[1., 1., 1., 1.],
+                    [1., 1., 0., 0.],
+                    [1., 0., 0., 0.]])
+        """
+        max_len = max([len(item) for item in xs])
+        batchs = len(xs)
+        ndim = xs[0].ndim
+        if ndim == 1:
+            pad_res = torch.zeros(batchs,
+                                max_len,
+                                dtype=xs[0].dtype,
+                                device=xs[0].device)
+        elif ndim == 2:
+            pad_res = torch.zeros(batchs,
+                                max_len,
+                                xs[0].shape[1],
+                                dtype=xs[0].dtype,
+                                device=xs[0].device)
+        elif ndim == 3:
+            pad_res = torch.zeros(batchs,
+                                max_len,
+                                xs[0].shape[1],
+                                xs[0].shape[2],
+                                dtype=xs[0].dtype,
+                                device=xs[0].device)
+        else:
+            raise ValueError(f"Unsupported ndim: {ndim}")
+        pad_res.fill_(pad_value)
+        for i in range(batchs):
+            pad_res[i, :len(xs[i])] = xs[i]
+        return pad_res
+
+    def add_sos_eos(self, ys_pad: torch.Tensor, sos: int, eos: int,
+                    ignore_id: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Add <sos> and <eos> labels.
+
+        Args:
+            ys_pad (torch.Tensor): batch of padded target sequences (B, Lmax)
+            sos (int): index of <sos>
+            eos (int): index of <eeos>
+            ignore_id (int): index of padding
+
+        Returns:
+            ys_in (torch.Tensor) : (B, Lmax + 1)
+            ys_out (torch.Tensor) : (B, Lmax + 1)
+
+        Examples:
+            >>> sos_id = 10
+            >>> eos_id = 11
+            >>> ignore_id = -1
+            >>> ys_pad
+            tensor([[ 1,  2,  3,  4,  5],
+                    [ 4,  5,  6, -1, -1],
+                    [ 7,  8,  9, -1, -1]], dtype=torch.int32)
+            >>> ys_in,ys_out=self.add_sos_eos(ys_pad, sos_id , eos_id, ignore_id)
+            >>> ys_in
+            tensor([[10,  1,  2,  3,  4,  5],
+                    [10,  4,  5,  6, 11, 11],
+                    [10,  7,  8,  9, 11, 11]])
+            >>> ys_out
+            tensor([[ 1,  2,  3,  4,  5, 11],
+                    [ 4,  5,  6, 11, -1, -1],
+                    [ 7,  8,  9, 11, -1, -1]])
+        """
+        _sos = torch.tensor([sos],
+                            dtype=torch.long,
+                            requires_grad=False,
+                            device=ys_pad.device)
+        _eos = torch.tensor([eos],
+                            dtype=torch.long,
+                            requires_grad=False,
+                            device=ys_pad.device)
+        ys = [y[y != ignore_id] for y in ys_pad]  # parse padded ys
+        ys_in = [torch.cat([_sos, y], dim=0) for y in ys]
+        ys_out = [torch.cat([y, _eos], dim=0) for y in ys]
+        return self.pad_list(ys_in, eos), self.pad_list(ys_out, ignore_id)
+
+    
     # decoder.onnx函数只负责计算正向和反向的得分，具体的计算要这两个乘对应的概率加上ctc权重乘以概率才是最终结果
     def execute(self, requests):
         """`execute` must be implemented in every Python model. `execute`
@@ -200,6 +296,11 @@ class TritonPythonModel:
         encoder_max_len = 0
         hyps_max_len = 0
         total = 0
+        
+        reverse_weight = 0.3
+        ctc_weight = 0.3
+        prefix_len = 1
+        
         # 批次是1的情况下只循环一次，只有一条音频的非流式语音识别就是这种情况
         for request in requests:
             # Perform inference on the request and append it to responses list...
@@ -271,14 +372,16 @@ class TritonPythonModel:
         all_hyps = []
         all_ctc_score = []
         max_seq_len = 0
+        # 处理前缀束搜索的结果
         for seq_cand in score_hyps:
             # if candidates less than beam size
             # 现在还差hyps,hyps_lens的运算，准备给decoder输入
+            # 如果路径不够的话就填充负无穷
             if len(seq_cand) != self.beam_size:
                 seq_cand = list(seq_cand)
                 seq_cand += (self.beam_size - len(seq_cand)) * [(-float("INF"),
                                                                  (0, ))]
-
+            # 提取候选路径和得分
             for score, hyps in seq_cand:
                 all_hyps.append(list(hyps))
                 all_ctc_score.append(score)
@@ -286,8 +389,11 @@ class TritonPythonModel:
 
         beam_size = self.beam_size
         feature_size = self.feature_size
+        # 长度加上作用两侧的sos和eos
         hyps_max_len = max_seq_len + 2
+        # 初始化用于存储CTC得分的数组
         in_ctc_score = np.zeros((total, beam_size), dtype=self.data_type)
+        # 给序列添加eos结束标识
         in_hyps_pad_sos_eos = np.ones(
             (total, beam_size, hyps_max_len), dtype=np.int64) * self.eos
         if self.bidecoder:
@@ -308,31 +414,31 @@ class TritonPythonModel:
                 for j in range(beam_size):
                     cur_hyp = all_hyps.pop(0)
                     cur_len = len(cur_hyp) + 2
+                    # 为了每个假设序列添加sos和eos，因此需要将长度加1
                     in_hyp = [self.sos] + cur_hyp + [self.eos]
                     in_hyps_pad_sos_eos[st + i][j][0:cur_len] = in_hyp
+                    # 这里的长度是不包括eos的，因此需要减1
                     in_hyps_lens_sos[st + i][j] = cur_len - 1
                     if self.bidecoder:
                         r_in_hyp = [self.sos] + cur_hyp[::-1] + [self.eos]
                         in_r_hyps_pad_sos_eos[st + i][j][0:cur_len] = r_in_hyp
                     in_ctc_score[st + i][j] = all_ctc_score.pop(0)
             st += b
-        in_encoder_out_lens = np.expand_dims(in_encoder_out_lens, axis=1)
-        # hyps [0,0],hyps_lens [0],encoder_out [1,0,256]
-        in_tensor_0 = pb_utils.Tensor("encoder_out", in_encoder_out)
-        in_tensor_1 = pb_utils.Tensor("encoder_out_lens", in_encoder_out_lens)
-        in_tensor_2 = pb_utils.Tensor("hyps_pad_sos_eos", in_hyps_pad_sos_eos)
-        in_tensor_3 = pb_utils.Tensor("hyps_lens_sos", in_hyps_lens_sos)
-        input_tensors = [in_tensor_0, in_tensor_1, in_tensor_2, in_tensor_3]
-        if self.bidecoder:
-            in_tensor_4 = pb_utils.Tensor("r_hyps_pad_sos_eos",
-                                          in_r_hyps_pad_sos_eos)
-            input_tensors.append(in_tensor_4)
-        in_tensor_5 = pb_utils.Tensor("ctc_score", in_ctc_score)
-        input_tensors.append(in_tensor_5)
+        # 减去第一个total，没有用的维度
+        in_hyps_pad_sos_eos_origin = in_hyps_pad_sos_eos 
+        in_hyps_lens_sos_origin = in_hyps_lens_sos
+        _ = in_hyps_pad_sos_eos[0]
+        _ = in_hyps_lens_sos[0]
+        # hyps [0,0],hyps_lens [0],encoder_out [1,0,256]，现在的in_hyps_pad_sos_eos就是缺少total维度的了
+        in_tensor_0 = pb_utils.Tensor("hyps", in_hyps_pad_sos_eos)
+        in_tensor_1 = pb_utils.Tensor("hyps_lens", in_hyps_lens_sos)
+        in_tensor_2 = pb_utils.Tensor("encoder_out", in_0)
+        
+        input_tensors = [in_tensor_0, in_tensor_1, in_tensor_2]
 
         inference_request = pb_utils.InferenceRequest(
             model_name='decoder',
-            requested_output_names=['best_index'],
+            requested_output_names=['score','r_score'],
             inputs=input_tensors)
 
         # 新的decoder返回score和r_score，需要回来计算最终的得分,reverse_weight=0.3，这个与模型相关，从train.yaml中找到
@@ -343,18 +449,71 @@ class TritonPythonModel:
             raise pb_utils.TritonModelException(
                 inference_response.error().message())
         else:
-            # Extract the output tensors from the inference response.
-            best_index = pb_utils.get_output_tensor_by_name(
-                inference_response, 'best_index')
-            if best_index.is_cpu():
-                best_index = best_index.as_numpy()
+            # Extract the output tensors from the inference response.获取正向反向打分结果
+            # score(num_hyps, max_hyps_len, vocab_size),r_score (num_hyps, max_hyps_len, vocab_size)。
+            score = pb_utils.get_output_tensor_by_name(
+                inference_response, 'score')
+            r_score = pb_utils.get_output_tensor_by_name(
+                inference_response, 'r_score')
+            if score.is_cpu():
+                score = score.as_numpy()
+                r_score = r_score.as_numpy()
             else:
-                best_index = from_dlpack(best_index.to_dlpack())
-                best_index = best_index.cpu().numpy()
-            hyps = []
-            idx = 0
-            for cands, cand_lens in zip(in_hyps_pad_sos_eos, in_hyps_lens_sos):
-                best_idx = best_index[idx][0]
+                score = from_dlpack(score.to_dlpack())
+                score = score.cpu().numpy()
+                r_score = from_dlpack(r_score.to_dlpack())
+                r_score = r_score.cpu().numpy()
+
+        # 开始使用循环计算最终得分score和选择路线，这里应该有一个根据ctc_scores[i].nbest的循环
+            best_score = -float('inf')
+            best_index = 0
+            confidences = []
+            tokens_confidences = []
+            for i,hyp in enumerate(all_hyps):
+                # 用于累加当前假设的总得分。
+                result_score=0.0
+                # tc 是各个 token 的置信度列表，通过解码概率的指数表示。
+                tc = []  # tokens confidences
+                # 这个循环遍历当前假设中的每个标记 w，j 是标记的索引。
+                for j, w in enumerate(hyp):
+                    # 从解码器的输出 decoder_out 中提取当前标记的得分 s。
+                    s = score[i][j + (prefix_len - 1)][w]
+                    # 将当前标记的得分 s 累加到总得分 score 中。
+                    result_score += s
+                    # 通过取 s 的指数值，计算出当前标记的置信度并添加到列表 tc 中。
+                    # 这个指数运算使得得分转化为一种概率形式，表示模型对这个标记的信心程度。
+                    tc.append(math.exp(s))
+                if r_score.dim() > 0:
+                    reverse_score = 0.0
+                    # 这个循环遍历当前假设中的每个标记，以计算反向得分。
+                    for j, w in enumerate(hyp):
+                        # 从反向解码输出 r_decoder_out 中提取当前标记的反向得分 s。
+                        s = r_score[i][len(hyp) - j - 1 +
+                                            (prefix_len - 1)][w]
+                        # 累加
+                        reverse_score += s
+                        # 更新当前标记的置信度 tc[j]，将正向和反向的置信度平均化，以综合考虑两种得分。
+                        tc[j] = (tc[j] + math.exp(s)) / 2
+                    # 将反向解码中结束标记的得分也加入到 r_score 中。
+                    reverse_score += r_score[i][len(hyp) + (prefix_len - 1)][self.eos]
+                    result_score = result_score * (1 - reverse_weight) + reverse_score * reverse_weight
+                confidences.append(math.exp(score / (len(hyp) + 1)))
+                if score > best_score:
+                    best_score = score.item()
+                    best_index = i
+                # 将当前假设中各个标记的置信度列表 tc 添加到 tokens_confidences 中，以便后续分析和使用。
+                tokens_confidences.append(tc)
+            results = []
+            results.append(
+                DecodeResult(hyps[best_index],
+                         best_score,
+                         confidence=confidences[best_index],
+                         times=all_ctc_score[b].nbest_times[best_index],
+                         tokens_confidence=tokens_confidences[best_index]))
+
+
+            for cands, cand_lens in zip(in_hyps_pad_sos_eos_origin, in_hyps_lens_sos_origin):
+                best_idx = best_index
                 best_cand_len = cand_lens[best_idx] - 1  # remove sos
                 best_cand = cands[best_idx][1:1 + best_cand_len].tolist()
                 hyps.append(best_cand)

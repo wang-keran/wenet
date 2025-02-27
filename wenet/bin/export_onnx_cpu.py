@@ -440,7 +440,7 @@ def export_decoder(asr_model, args):
     print_input_output_info(onnx_decoder, "onnx_decoder")
     model_fp32 = decoder_outpath
     model_quant = os.path.join(args['output_dir'], 'decoder.quant.onnx')
-    # 想量化模型，减少计算量
+    # 向量化模型，减少计算量
     quantize_dynamic(model_fp32, model_quant, weight_type=QuantType.QUInt8)
     print('\t\tExport onnx_decoder, done! see {}'.format(decoder_outpath))
 
