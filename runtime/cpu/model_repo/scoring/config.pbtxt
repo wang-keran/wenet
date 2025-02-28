@@ -23,7 +23,7 @@ parameters [
     value: { string_value: "/ws/onnx_model/words.txt"}
   },
   {
-    key: "bidecoder",
+    key: "bidecoder",     # 使用了双向解码器，需要修改model.py
     value: { string_value: "1"}
   },
   {

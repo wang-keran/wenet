@@ -450,7 +450,7 @@ class TritonPythonModel:
                 inference_response.error().message())
         else:
             # Extract the output tensors from the inference response.获取正向反向打分结果
-            # score(num_hyps, max_hyps_len, vocab_size),r_score (num_hyps, max_hyps_len, vocab_size)。
+            # score(num_hyps, max_hyps_len, vocab_size),r_score (num_hyps表示有 10 个假设序列, max_hyps_len表示每个假设序列的最大长度为 20, vocab_size示每个时间步上有 5000 个词汇的概率分布)。
             score = pb_utils.get_output_tensor_by_name(
                 inference_response, 'score')
             r_score = pb_utils.get_output_tensor_by_name(

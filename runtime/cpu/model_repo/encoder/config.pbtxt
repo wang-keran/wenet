@@ -27,7 +27,7 @@ input [
   {
     name: "offset"
     data_type: TYPE_INT64
-    dims: [0]
+    dims: [0]           # offset
   },
   {
     name: "att_cache"

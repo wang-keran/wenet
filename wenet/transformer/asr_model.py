@@ -165,6 +165,7 @@ class ASRModel(torch.nn.Module):
             encoder_out: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         # 确定输入批次大小
         batch_size = encoder_out.size(0)
+        print("筛选出非空白标记")
         # 获取最大长度 maxlen
         # encoder_out 的形状为 (batch_size, maxlen, feature_dim)，表示每个样本在时间维度上的特征。
         maxlen = encoder_out.size(1)
@@ -258,6 +259,7 @@ class ASRModel(torch.nn.Module):
         #print(decoding_chunk_size)          # 调试用
         #print("剩余块数为：")
         #print(num_decoding_left_chunks)
+        print("进入编码方法")
         if simulate_streaming and decoding_chunk_size > 0:
             encoder_out, encoder_mask = self.encoder.forward_chunk_by_chunk(
                 speech,
@@ -289,6 +291,7 @@ class ASRModel(torch.nn.Module):
                      encoder_out: torch.Tensor,
                      blank_penalty: float = 0.0,
                      blank_id: int = 0):
+        print("进入ctc运算方法")
         # 如果有空白惩罚
         if blank_penalty > 0.0:
             # 通过 CTC 层将编码器输出转化为 logits，使用torch自带的方法。
@@ -519,6 +522,7 @@ class ASRModel(torch.nn.Module):
         Returns:
             torch.Tensor: decoder output
         """
+        print("进入forward_attention_decoder解码方法")
         assert encoder_out.size(0) == 1
         num_hyps = hyps.size(0)
         assert hyps_lens.size(0) == num_hyps

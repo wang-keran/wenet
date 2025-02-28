@@ -38,7 +38,6 @@ from wenet.utils.common import TORCH_NPU_AVAILABLE  # noqa just ensure to check 
 def get_args():
     parser = argparse.ArgumentParser(description='recognize with your model')
     parser.add_argument('--config', help='config file'
-    ,default="/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/train.yaml"
 )
     parser.add_argument('--test_data',  help='test data file',
                         default = "inference/data.list")
@@ -65,8 +64,7 @@ def get_args():
                         type=int,
                         help='num of subprocess workers for reading')
     # 在init_model文件里选择这个参数
-    parser.add_argument('--checkpoint', help='checkpoint model',
-        default="/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/final.pt"
+    parser.add_argument('--checkpoint', help='checkpoint model'
 )
     # 在context_graph.py中选择这个参数
     parser.add_argument('--beam_size',

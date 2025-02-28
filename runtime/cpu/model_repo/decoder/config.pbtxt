@@ -20,40 +20,40 @@ default_model_filename: "decoder.onnx"
 max_batch_size: 640
 input [
   {
-    name: "hyps"
-    data_type: TYPE_INT64
-    format: FORMAT_NONE
+    name: "hyps"              # (NBEST, L)
+    data_type: TYPE_INT64     # NBEST：候选假设的数量，硬编码为10。
+    format: FORMAT_NONE       # L：每个假设的最大长度，硬编码为20。
     dims: [ 0, 0 ]
   },
   {
-    name: "hyps_lens"
+    name: "hyps_lens"         # (NBEST)：候选假设的数量，硬编码为10。
     data_type: TYPE_INT64
     format: FORMAT_NONE
     dims: [ 0 ]
   },
   {
-    name: "encoder_out"     # encoder中的output输出
-    data_type: TYPE_FP32
-    format: FORMAT_NONE
-    dims: [ 1, 0, 256 ]
+    name: "encoder_out"     # encoder中的output输出，(batch, T, output_size)
+    data_type: TYPE_FP32    # batch：批次大小，默认为1。
+    format: FORMAT_NONE     # T：时间步长（即每个音频片段的长度），硬编码为200。
+    dims: [ 1, 0, 256 ]     # output_size：编码器输出的特征维度，通常是从配置文件中读取的 args['output_size']。
   }
 ]
 
 output [
   {
-    name: "score"
-    data_type: TYPE_FP32
-    dims: [ 0, 0, 4233 ]
+    name: "score"           # （total,NBEST, L） total:批次大小
+    data_type: TYPE_FP32    # NBEST：候选假设的数量，硬编码为10。
+    dims: [ 0, 0, 4233 ]    # L：每个假设的最大长度，硬编码为20。
   },
   {
-    name: "r_score"
-    data_type: TYPE_FP32
-    dims: [ 0, 0, 4233 ]
+    name: "r_score"        #  （total,NBEST, L）total:批次大小
+    data_type: TYPE_FP32   # NBEST：候选假设的数量，硬编码为10。
+    dims: [ 0, 0, 4233 ]   # L：每个假设的最大长度，硬编码为20。
   }
 ]
 
 dynamic_batching {
-    preferred_batch_size: [ 16, 32 ]
+    preferred_batch_size: [ 16, 32 ]    # 这里是动态维度默认先尝试16，然后尝试32的意思
   }
 
 instance_group [

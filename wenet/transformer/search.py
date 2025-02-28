@@ -122,6 +122,7 @@ def ctc_greedy_search(ctc_probs: torch.Tensor,
                       ctc_lens: torch.Tensor,
                       blank_id: int = 0) -> List[DecodeResult]:
     # 获取批次大小 batch_size 和最大序列长度 maxlen。
+    print("进入ctc_greedy_search方法")
     batch_size = ctc_probs.shape[0]
     maxlen = ctc_probs.size(1)
     # 使用 ctc_probs.topk(1, dim=2) 获取每个时间步中概率最高的索引，返回值为 topk_prob 和 topk_index。
@@ -174,6 +175,7 @@ def ctc_prefix_beam_search(
         Returns:
             List[List[List[int]]]: nbest result for each utterance
     """
+    print("进入ctc_prefix_beam_search方法")
     # 获取输入张量 ctc_probs 的批量大小
     batch_size = ctc_probs.shape[0]
     # 初始化输出结果列表
@@ -365,6 +367,7 @@ def attention_beam_search(
     length_penalty: float = 0.0,
     infos: Dict[str, List[str]] = None,
 ) -> List[DecodeResult]:
+    print("进入attention_beam_search方法")
     # 获取设备（如 CPU 或 GPU）以及批量大小（batch_size）。
     device = encoder_out.device
     batch_size = encoder_out.shape[0]
@@ -562,6 +565,7 @@ def attention_rescoring(
             ctc_prefix_results(List[DecodeResult]): ctc prefix beam search results
     """
     # sos 和 eos 表示句子起始和结束标记。
+    print("进入注意力重打分解码")
     sos, eos = model.sos_symbol(), model.eos_symbol()
     # device 是编码器输出的设备，用于确保张量在同一设备上。
     device = encoder_outs.device
@@ -592,6 +596,7 @@ def attention_rescoring(
                 and "transcribe" in model.special_tokens:
             # 这里获取当前假设序列（hyps_pad）的长度（即列数），并将其存储在 prev_len 变量中。
             # 这个长度在后续处理中将用于计算添加标记后的变化。
+            print("有special_tokens")
             prev_len = hyps_pad.size(1)
             # 为假设序列 hyps_pad 添加特殊标记（例如，转录任务相关的标记）。
             hyps_pad, _ = add_whisper_tokens(
@@ -620,6 +625,7 @@ def attention_rescoring(
             # 将每个假设序列（hyps_pad）前后分别添加 sos（起始符号）和 eos（结束符号）。
             # model.ignore_id 是填充值，用于忽略非有效标记的位置。
             # 返回的 hyps_pad 现在包含了 sos 和 eos。
+            print("没有special_tokens")
             hyps_pad, _ = add_sos_eos(hyps_pad, sos, eos, model.ignore_id)
             # 因为在序列开头添加了一个 <sos> 标记，所以所有序列的长度 hyps_lens 都增加 1。
             hyps_lens = hyps_lens + 1  # Add <sos> at begining

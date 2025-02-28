@@ -122,13 +122,13 @@ ensemble_scheduling {
     model_version: -1
     input_map {
       key: "hidden"
-      value: "hidden"
+      value: "output"   # 这里有问题，输入值错误，value应该是encoder的output，修改完成
     }
     output_map {
       key: "probs"
       value: "probs"
     }
-  }
+  },
   # 最新版scoring
   {
       model_name: "scoring"
