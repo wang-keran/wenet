@@ -140,6 +140,8 @@ def export_encoder(asr_model, args):
     cnn_cache = torch.zeros(
         (args['num_blocks'], args['batch'], args['output_size'],
          args['cnn_module_kernel'] - 1))
+    # 修改offset的输入形状，从数字变成dims[1]
+    offset = np.array((offset)).astype(np.int64)
     # 输入形状
     inputs = (chunk, offset, required_cache_size, att_cache, cnn_cache,
               att_mask)

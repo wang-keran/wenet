@@ -503,13 +503,6 @@ class TritonPythonModel:
                     best_index = i
                 # 将当前假设中各个标记的置信度列表 tc 添加到 tokens_confidences 中，以便后续分析和使用。
                 tokens_confidences.append(tc)
-            results = []
-            results.append(
-                DecodeResult(hyps[best_index],
-                         best_score,
-                         confidence=confidences[best_index],
-                         times=all_ctc_score[b].nbest_times[best_index],
-                         tokens_confidence=tokens_confidences[best_index]))
 
 
             for cands, cand_lens in zip(in_hyps_pad_sos_eos_origin, in_hyps_lens_sos_origin):

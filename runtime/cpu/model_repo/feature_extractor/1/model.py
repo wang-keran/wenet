@@ -198,23 +198,21 @@ class TritonPythonModel:
             output_size = 256
             cnn_module_kernel = 7
            
-            out0 = pb_utils.Tensor.from_dlpack("speech", to_dlpack(speech))
-            out1 = pb_utils.Tensor.from_dlpack("speech_lengths",
-                                               to_dlpack(speech_lengths))
             # inference_response = pb_utils.InferenceResponse(
             #     output_tensors=[out0, out1])
             
             # 创建张量,这里有问题，找不到output0_dtype
-            chunk_output = torch.zeros(batch, decoding_window, feature_size, dtype=self.output0_dtype)
-            offset_output = torch.zeros(offset, dtype=self.output1_dtype)
+            chunk_output = speech
+            # 这里两个cache都是空的，因为都是非流式语音识别，所以没有用到。
             att_cache_out = torch.zeros(batch, num_blocks, head, required_cache_size, d_k, dtype=self.output2_dtype)
-            cnn_cache = torch.zeros(num_blocks, batch, output_size, cnn_module_kernel, dtype=self.output3_dtype)
+            cnn_cache_out = torch.zeros(num_blocks, batch, output_size, cnn_module_kernel, dtype=self.output3_dtype)
         
             # 将张量转换为DLpack格式
             chunk_dlpack = to_dlpack(chunk_output)
-            offset_dlpack = to_dlpack(offset_output)
+            # 这里的offset是一个标量，所以需要将其转换为张量，并转换为DLpack格式
+            offset_dlpack = to_dlpack(torch.tensor([offset], dtype=self.output1_dtype))
             att_cache_dlpack = to_dlpack(att_cache_out)
-            cnn_cache_dlpack = to_dlpack(cnn_cache)
+            cnn_cache_dlpack = to_dlpack(cnn_cache_out)
         
             # 封装为 pb_utils.Tensor 对象
             chunk_tensor = pb_utils.Tensor("chunk", chunk_dlpack)

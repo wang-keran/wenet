@@ -17,12 +17,12 @@ name: "ctc"
 backend: "onnxruntime"
 default_model_filename: "ctc.onnx"
 
-max_batch_size: 640
+max_batch_size: 0
 input [
   {
     name: "hidden"
     data_type: TYPE_FP32
-    dims: [ 1, 0, 256 ]  #(batch, time_steps（是时间步长，取决于 chunk_size，如果 chunk_size 小于等于0，则默认为16）, hidden_size（编码器输出的特征维度。）)
+    dims: [ 1, -1, 256 ]  #(batch, time_steps（是时间步长，取决于 chunk_size，如果 chunk_size 小于等于0，则默认为16）, hidden_size（编码器输出的特征维度。）)
   }
 ]
 
@@ -30,7 +30,7 @@ output [
   {
     name: "probs"
     data_type: TYPE_FP32
-    dims: [ 1, 0, 4233 ]  #(batch, time_steps, vocab_size) 批次数量（一批两批的意思）、时间步数（是时间步长，取决于 chunk_size，如果 chunk_size 小于等于0，则默认为16）、字符集大小。
+    dims: [ 1, -1, 4233 ]  #(batch, time_steps, vocab_size) 批次数量（一批两批的意思）、时间步数（是时间步长，取决于 chunk_size，如果 chunk_size 小于等于0，则默认为16）、字符集大小。
   }
 ]
 

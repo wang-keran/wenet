@@ -14,7 +14,7 @@
 
 name: "feature_extractor"
 backend: "python"
-max_batch_size: 64
+max_batch_size: 1
 
 # 特征提取预处理
 # 这里的数据都是默认的不需要改
@@ -55,17 +55,17 @@ output [
   {
     name: "chunk"
     data_type: TYPE_FP32
-    dims: [1, 0, 80]  #batch,decoding_window,feature_size
+    dims: [1, -1, 80]  #batch,decoding_window,feature_size
   },
   {
     name: "offset"
     data_type: TYPE_INT64
-    dims: [0]
+    dims: [1]
   },
   {
     name: "att_cache"
     data_type: TYPE_FP32
-    dims: [12, 4, 0, 128] #args['num_blocks'], args['head'], required_cache_size,
+    dims: [12, 4, -1, 128] #args['num_blocks'], args['head'], required_cache_size,
                           #args['output_size'] // args['head'] * 2
   },
   {
@@ -77,9 +77,7 @@ output [
   }
 ]
 
-dynamic_batching {
-    preferred_batch_size: [ 16, 32 ]
-  }
+
 instance_group [
     {
       count: 2
