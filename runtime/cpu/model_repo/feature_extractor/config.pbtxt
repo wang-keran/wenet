@@ -14,7 +14,7 @@
 
 name: "feature_extractor"
 backend: "python"
-max_batch_size: 1
+max_batch_size: 0
 
 # 特征提取预处理
 # 这里的数据都是默认的不需要改
