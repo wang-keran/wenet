@@ -17,7 +17,7 @@ name: "decoder"
 backend: "onnxruntime"
 default_model_filename: "decoder.onnx"
 
-max_batch_size: 640
+max_batch_size: 0
 input [
   {
     name: "hyps"              # (NBEST, L)
