@@ -19,7 +19,7 @@ default_model_filename: "encoder.onnx"
 
 max_batch_size: 512
 
-sequence_batching{
+sequence_batching{    # 共享缓存和开始位置offset，从而实现共享上下文
     max_sequence_idle_microseconds: 5000000
     oldest {
       max_candidate_sequences: 1024

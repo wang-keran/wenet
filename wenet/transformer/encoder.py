@@ -234,7 +234,8 @@ class BaseEncoder(torch.nn.Module):
     def forward_chunk(
         self,
         xs: torch.Tensor,
-        offset: int,
+        offset: int,  # 暂时注释掉换成下面的
+        # offset:torch.Tensor,
         required_cache_size: int,
         att_cache: torch.Tensor = torch.zeros(0, 0, 0, 0),
         cnn_cache: torch.Tensor = torch.zeros(0, 0, 0, 0),
@@ -270,6 +271,10 @@ class BaseEncoder(torch.nn.Module):
                 same shape as the original cnn_cache.
 
         """
+        # 提取offset的值，并将其转换为整数类型。
+        # offset_value = offset.item()
+        # offset = offset_value
+        # offset=0
         # 这里确保输入的批次大小为1，即只处理一条音频数据。
         assert xs.size(0) == 1
         # tmp_masks：创建一个与输入长度相同的掩码，所有值为1，表示所有位置都有效，用于表示没有任何时间步需要被掩盖或忽略。
@@ -295,7 +300,7 @@ class BaseEncoder(torch.nn.Module):
         elayers, cache_t1 = att_cache.size(0), att_cache.size(2)
         # 获取音频块大小
         chunk_size = xs.size(1)
-        print("forward_chunk中块大小为：",chunk_size)
+        # print("forward_chunk中块大小为：",chunk_size)
         # attention_key_size 计算注意力键的大小，是之前的计算结果缓存大小加一块。
         attention_key_size = cache_t1 + chunk_size
         # 先去utils文件夹里找到对应的类，再去subsampling里面找，然后通过torch到embedding里找到需要的方法实现
@@ -342,9 +347,9 @@ class BaseEncoder(torch.nn.Module):
 
         #print("归一化后的音频：")
         #print(xs)
-        print("使用了forward_chunk()方法444444444444444")
+        # print("使用了forward_chunk()方法444444444444444")
          # 打印 hidden-dim
-        print(f"hidden-dim: {self._output_size}")
+        # print(f"hidden-dim: {self._output_size}")
 
         # NOTE(xcsong): shape(r_att_cache) is (elayers, head, ?, d_k * 2),
         #   ? may be larger than cache_t1, it depends on required_cache_size

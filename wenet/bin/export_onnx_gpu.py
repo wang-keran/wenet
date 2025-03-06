@@ -1049,6 +1049,7 @@ def export_online_encoder(model, configs, args, logger, encoder_onnx_path):
     head = configs["encoder_conf"]["attention_heads"]
     # 这行代码从配置字典中获取编码器的输出大小，并计算每个注意力头的维度大小。
     d_k = configs["encoder_conf"]["output_size"] // head
+    # 创建了一个名为 att_cache 的张量，用于存储注意力模块的缓存。上面调用的cache相当于新建的类.
     att_cache = torch.randn(
         batch_size,
         num_layers,

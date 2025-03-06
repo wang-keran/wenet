@@ -93,7 +93,7 @@ def export_encoder(asr_model, args):
     print("\tStage-1.1: prepare inputs for encoder")
     chunk = torch.randn(
         (args['batch'], args['decoding_window'], args['feature_size']))
-    offset = 0
+    offset=0
     # NOTE(xcsong): The uncertainty of `next_cache_start` only appears
     #   in the first few chunks, this is caused by dynamic att_cache shape, i,e
     #   (0, 0, 0, 0) for 1st chunk and (elayers, head, ?, d_k*2) for subsequent
@@ -130,6 +130,7 @@ def export_encoder(asr_model, args):
         att_mask[:, :, :required_cache_size] = 0
     # 剩余块数小于0,非流式模型
     elif args['left_chunks'] <= 0:  # 16/-1, -1/-1, 16/0
+        print("非流式的走法")
         required_cache_size = -1 if args['left_chunks'] < 0 else 0
         # Fake cache
         att_cache = torch.zeros((args['num_blocks'], args['head'], 0,
@@ -141,10 +142,12 @@ def export_encoder(asr_model, args):
         (args['num_blocks'], args['batch'], args['output_size'],
          args['cnn_module_kernel'] - 1))
     # 修改offset的输入形状，从数字变成dims[1]
-    offset = np.array((offset)).astype(np.int64)
+    # offset = np.array((offset)).astype(np.int64)
     # 输入形状
     inputs = (chunk, offset, required_cache_size, att_cache, cnn_cache,
               att_mask)
+    # inputs = (chunk, required_cache_size, att_cache, cnn_cache,
+    #           att_mask)
     # 打印输入规定
     print("\t\tchunk.size(): {}\n".format(chunk.size()),
           "\t\toffset: {}\n".format(offset),
@@ -198,8 +201,12 @@ def export_encoder(asr_model, args):
                       opset_version=13,
                       export_params=True,
                       do_constant_folding=True,
-                      input_names=[
-                          'chunk', 'offset', 'required_cache_size',
+                    #   input_names=[
+                    #       'chunk','required_cache_size',
+                    #       'att_cache', 'cnn_cache', 'att_mask'
+                    #   ],
+                    input_names=[
+                          'chunk','offset','required_cache_size',
                           'att_cache', 'cnn_cache', 'att_mask'
                       ],
                       output_names=['output', 'r_att_cache', 'r_cnn_cache'],
@@ -230,23 +237,27 @@ def export_encoder(asr_model, args):
     # 检查torch编码器
     torch_output = []
     torch_chunk = copy.deepcopy(chunk)
-    torch_offset = copy.deepcopy(offset)
+    # torch_offset = copy.deepcopy(offset)
+    torch_offset=0
     torch_required_cache_size = copy.deepcopy(required_cache_size)
     torch_att_cache = copy.deepcopy(att_cache)
     torch_cnn_cache = copy.deepcopy(cnn_cache)
     torch_att_mask = copy.deepcopy(att_mask)
     for i in range(10):
-        print("\t\ttorch chunk-{}: {}, offset: {}, att_cache: {},"
+        print("\t\ttorch chunk-{}: {},offset: {}, att_cache: {},"  # offset: {},
               " cnn_cache: {}, att_mask: {}".format(
-                  i, list(torch_chunk.size()), torch_offset,
+                  i, list(torch_chunk.size()),torch_offset,       # torch_offset
                   list(torch_att_cache.size()), list(torch_cnn_cache.size()),
                   list(torch_att_mask.size())))
         # NOTE(xsong): att_mask of the first few batches need changes if
         #   we use 16/4 mode.流式的情况
         if args['left_chunks'] > 0:  # 16/4
             torch_att_mask[:, :, -(args['chunk_size'] * (i + 1)):] = 1
+        # out, torch_att_cache, torch_cnn_cache = encoder(
+        #     torch_chunk, torch_offset, torch_required_cache_size,
+        #     torch_att_cache, torch_cnn_cache, torch_att_mask)
         out, torch_att_cache, torch_cnn_cache = encoder(
-            torch_chunk, torch_offset, torch_required_cache_size,
+            torch_chunk, torch_offset,torch_required_cache_size,
             torch_att_cache, torch_cnn_cache, torch_att_mask)
         torch_output.append(out)
         torch_offset += out.size(1)
@@ -266,9 +277,9 @@ def export_encoder(asr_model, args):
     # 规定输入项的名称
     input_names = [node.name for node in onnx_encoder.graph.input]
     for i in range(10):
-        print("\t\tonnx  chunk-{}: {}, offset: {}, att_cache: {},"
+        print("\t\tonnx  chunk-{}: {}, offset: {}, att_cache: {},"      # offset: {},
               " cnn_cache: {}, att_mask: {}".format(i, onnx_chunk.shape,
-                                                    onnx_offset,
+                                                    onnx_offset,    # onnx_offset.shape
                                                     onnx_att_cache.shape,
                                                     onnx_cnn_cache.shape,
                                                     onnx_att_mask.shape))

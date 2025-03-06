@@ -17,7 +17,9 @@ name: "encoder"
 backend: "onnxruntime"
 default_model_filename: "encoder.onnx"
 
-max_batch_size: 640
+# default_input不知道能不能作为输入代码,不行应该，需要修改导出脚本和offset
+
+max_batch_size: 0
 input [
  {
     name: "chunk"
@@ -27,8 +29,8 @@ input [
   {
     name: "offset"
     data_type: TYPE_INT64
-    dims: [1]           # offset,这里要进行修改，因为非批次的不支持reshape，要对export_onnx_cpu动手，不仅是改输入，还要改输入对数据的影响
-    reshape: {shape: [ ]}
+    dims: [ ]           # offset,这里要进行修改，因为非批次的不支持reshape，要对export_onnx_cpu动手，不仅是改输入，还要改输入对数据的影响
+    #reshape: {shape: [ ]}
   },
   {
     name: "att_cache"

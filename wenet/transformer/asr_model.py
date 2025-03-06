@@ -465,6 +465,7 @@ class ASRModel(torch.nn.Module):
                 same shape as the original cnn_cache.
 
         """
+        print("使用了forward_encoder_chunk")
         return self.encoder.forward_chunk(xs, offset, required_cache_size,
                                           att_cache, cnn_cache)
 
