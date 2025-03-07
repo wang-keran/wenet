@@ -212,6 +212,7 @@ def export_encoder(asr_model, args):
                       output_names=['output', 'r_att_cache', 'r_cnn_cache'],
                       dynamic_axes=dynamic_axes,
                       verbose=False)
+    print("export导出完成")
     # 加载onnx编码器模型
     onnx_encoder = onnx.load(encoder_outpath)
     # 在导出 ONNX 模型时，将模型的配置信息（如训练参数、超参数等）添加到模型的元数据中。
@@ -234,7 +235,7 @@ def export_encoder(asr_model, args):
 
     # 检查onnx编码器和torch编码器
     print("\tStage-1.3: check onnx_encoder and torch_encoder")
-    # 检查torch编码器
+    # 检查torch编码器，深拷贝是创建新的对象，不会影响原对象
     torch_output = []
     torch_chunk = copy.deepcopy(chunk)
     # torch_offset = copy.deepcopy(offset)

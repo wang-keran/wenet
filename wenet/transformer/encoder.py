@@ -276,6 +276,7 @@ class BaseEncoder(torch.nn.Module):
         # offset = offset_value
         # offset=0
         # 这里确保输入的批次大小为1，即只处理一条音频数据。
+        print("使用了forward_chunk前向传播方法")
         assert xs.size(0) == 1
         # tmp_masks：创建一个与输入长度相同的掩码，所有值为1，表示所有位置都有效，用于表示没有任何时间步需要被掩盖或忽略。
         # tmp_masks is just for interface compatibility
@@ -441,7 +442,7 @@ class BaseEncoder(torch.nn.Module):
             
             # 确认xs和y的维度是不是一样
             (y, att_cache,
-             cnn_cache) = self.forward_chunk(chunk_xs, offset,
+             cnn_cache) = self.forward_chunk(chunk_xs,# offset,
                                              required_cache_size, att_cache,
                                              cnn_cache)
              
@@ -637,7 +638,7 @@ class ConformerEncoder(BaseEncoder):
         convolution_layer_args = (output_size, cnn_module_kernel, activation,
                                   cnn_module_norm, causal, conv_bias)
 
-        print("111111111111111")
+        print("111111111111111，使用conformer编码器")
         # 创建编码器层
         # 根据 mlp_type 获取对应的 MLP 类。
         mlp_class = WENET_MLP_CLASSES[mlp_type]
