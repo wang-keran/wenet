@@ -169,7 +169,7 @@ class StreamingSpeechClient(object):
             outputs = [
                 self.protocol_client.InferRequestedOutput("TRANSCRIPTS")
             ]
-            # 根据当前索引 idx 判断是否是最后一个片段，若是，则设置 end = True，否则为 False。
+            # 根据当前索引 idx 判断是否是最后一个片段，若是，则设置 end = True，否则为 False。直接结束，不需要等5秒才结束
             end = False
             if idx == len(wav_segs) - 1:
                 end = True
