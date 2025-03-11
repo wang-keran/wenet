@@ -16,6 +16,7 @@ from tritonclient.utils import np_to_triton_dtype
 import numpy as np
 import math
 import soundfile as sf
+import time
 
 
 # 非流式客户端
@@ -186,6 +187,7 @@ class StreamingSpeechClient(object):
             idx += 1
             print("response的结果是：",response)
             # 获取响应结果，并通过 response.as_numpy("TRANSCRIPTS")[0].decode("utf-8") 解码出转录文本。
+            time.sleep(1)
             result = response.as_numpy("TRANSCRIPTS")[0].decode("utf-8")
             # 输出结果，打印当前片段的索引和转录结果。
             print("Get response from {}th chunk: {}".format(idx, result))

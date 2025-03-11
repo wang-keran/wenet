@@ -161,7 +161,7 @@ class WenetModel(object):
             configs = yaml.load(fin, Loader=yaml.FullLoader)
         return configs
 
-    # 解析传入的 model_parameters 字典，并将其值赋给预定义的 model_p 字典中的相应键。
+    # 解析传入的 model_parameters 字典，并将其值赋给预定义的 model_p 字典中的相应键。这里的数据来自config.pbtxt的parameter部分
     def parse_model_parameters(self, model_parameters):
         # 初始化字典model_p,每个键一个默认值
         model_p = {
@@ -216,7 +216,7 @@ class WenetModel(object):
         # 基于系统CPU核心数和输入批次大小来确定并行处理的数量，以提高解码效率，选最小的来干
         num_processes = min(multiprocessing.cpu_count(), len(batch_log_probs))
 
-        # 解码
+        # 前缀束搜索解码,给后面重打分使用
         score_hyps = self.batch_ctc_prefix_beam_search_cpu(
             batch_log_probs,
             batch_log_probs_idx,

@@ -18,18 +18,18 @@ backend: "python"
 max_batch_size: 512
 
 sequence_batching{
-    max_sequence_idle_microseconds: 5000000
+    max_sequence_idle_microseconds: 5000000 # 5秒内没有输入就超时，超时就认为序列已经完成，准备接收下一个序列
     oldest {
-      max_candidate_sequences: 1024
-      preferred_batch_size: [32, 64, 128, 256]
+      max_candidate_sequences: 1024   # 最多同时处理 1024 个不同的序列
+      preferred_batch_size: [32, 64, 128, 256]    # 批次大小，先尝试上述的数字
     }
-    control_input [
+    control_input [ # control_input 用于管理 序列状态，在每个 batch 之间会自动更新。
         {
-            name: "START",
+            name: "START",  # 输入序列的开始，自动检测批次中哪些是新输入的序列
             control [
                 {
                     kind: CONTROL_SEQUENCE_START
-                    fp32_false_true: [0, 1]
+                    fp32_false_true: [0, 1]   # [batch_size]，里面是bool值变量
                 }
             ]
         },
@@ -139,6 +139,6 @@ output [
 instance_group [
     {
       count: 2
-      kind: KIND_CPU
+      kind: KIND_GPU
     }
 ]

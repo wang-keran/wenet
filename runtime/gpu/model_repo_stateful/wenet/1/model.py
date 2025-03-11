@@ -72,7 +72,8 @@ class TritonPythonModel:
         self.seq_states = {}
         print("Finish Init")
 
-    # 处理传入的请求列表requests，并生成相应的响应列表responses
+    # 处理传入的请求列表requests，并生成相应的响应列表responses，
+    # 一次初始化，一次finalize释放，多次调用这个实现函数，每次接收到客户端请求时才会进行调用
     def execute(self, requests):
         """
         requests : list
@@ -97,87 +98,147 @@ class TritonPythonModel:
 
         # Every Python backend must iterate over everyone of the requests
         # and create a pb_utils.InferenceResponse for each of them.
+        # 这里是获取config.pbtxt中输入数据的部分,分别来自ctc和encoder模块
         batch_idx = 0
+        # 按照请求进行循环，每次都是只有一个request，由客户端输入决定
         for request in requests:
-            # Get INPUT0
+            # Get INPUT0,为什么后面都要跟着()[0]这是去掉了第一个维度batch,后面两个是time_steps和beam_size
+            # 这些数据(长度,ctc结果)都要修改成numpy格式,为了更方便使用其中存储的数据,不需要进行推理
+            # 所以要转化为numpy格式
             in_0 = pb_utils.get_input_tensor_by_name(request, "log_probs")
             batch_log_probs.append(in_0.as_numpy()[0])
+            # print("in_0.numpy() is :",in_0.as_numpy())
+            # print("in_0.numpy[0] is :",in_0.as_numpy()[0])
+
+            # ()[0]也是去除了批次大小(去除第一个维度)
             in_1 = pb_utils.get_input_tensor_by_name(request, "log_probs_idx")
             batch_log_probs_idx.append(in_1.as_numpy()[0])
             if self.model.rescoring:
                 in_2 = pb_utils.get_input_tensor_by_name(request, "chunk_out")
                 # important to use clone or this tensor
                 # the tensor will be released after one inference
+                # 先将triton数据转成dlpack数据,再将dlpack张量转成pytorch张量并进行克隆,
+                # 因为原始张量再一次推理后被释放,克隆可以确保数据在后续使用时仍然有效
+                # 这里不转化为numpy数组,因为后续还需要使用pytorch张量进行操作,直接使用pytorch进行推理
+                # PyTorch 张量支持动态计算图和自动求导等功能，更适合复杂的模型操作。后面重打分推理需要使用这个序列
+                # 所以不能动,必须保持数据是pytorch格式,方便后续操作
                 in_2 = from_dlpack(in_2.to_dlpack()).clone()
+                # cur_encoder_out:用于存储当前批次中所有请求的 chunk_out 数据。
+                # 假设 in_2 是一个包含单个元素的张量列表，去掉第一个维度并添加到 cur_encoder_out 列表中。
+                # 因为第一维度是batch,所有推理都是在batch内部来的,不需要使用这个维度,减少计算量和复杂度
                 cur_encoder_out.append(in_2[0])
             in_3 = pb_utils.get_input_tensor_by_name(request, "chunk_out_lens")
+            # 转成numpy数组进行存储,这里只有一个数据维度表示长度,不需要去掉批次.
+            # 保持numpy数组存储为了方便提取数据,不需要进行推理
             batch_len.append(in_3.as_numpy())
 
+            # 这是config.pbtxt的sequence_batching中的参数,作用是初始化配置适应不同的模型,这两个[0的作用是什么]
+            # 去掉前两个维度吧，START维度是[batch_size]，READY，CORRID，END维度一样
+            # [0,1]分别表示false和true，in_1.as_numpy()[0][0]是取得第一批次的第一个时间步，
+            # in_1.as_numpy()[0,0]是去掉前两个维度
             in_start = pb_utils.get_input_tensor_by_name(request, "START")
             start = in_start.as_numpy()[0][0]
+            print("start is :",start)
 
+            # 表示当前序列是否是新的序列(批次)
             if start:
                 batch_start.append(True)
             else:
                 batch_start.append(False)
 
+            # 获取ready数输入,将张量转换为 NumPy 数组并提取第一个元素的值，得到 ready 布尔值,表示当前序列是否准备好,状态如何更新?
             in_ready = pb_utils.get_input_tensor_by_name(request, "READY")
             ready = in_ready.as_numpy()[0][0]
+            print("ready is :",ready)
 
+            # 获取corrid输入,将张量转换为 NumPy 数组并提取第一个元素的值，得到 corrid 整数值,表示当前序列的 ID,用于管理序列状态
             in_corrid = pb_utils.get_input_tensor_by_name(request, "CORRID")
             corrid = in_corrid.as_numpy()[0][0]
+            print("corrid is :",corrid)
 
+            # 获取end输入,将张量转换为 NumPy 数组并提取第一个元素的值，得到 end 布尔值,表示当前序列是否结束
             in_end = pb_utils.get_input_tensor_by_name(request, "END")
             end = in_end.as_numpy()[0][0]
+            print("end is :",end)
+            
+            # 每个batch中每个帧的表示格式
+            # 序号   START   READY   CORRID   END
+            #  0    1         1      1001      0
+            #  1    0         1      1001      0
+            #  2    0         1      1001      0
+            #  3    0         1      1001      1
+            #下一块：
+            #  0    1         1      1002      0
+            
 
+            # 开始的时候初始化状态,初始化缓存和前缀树等数据
+            # 如果初始化失败，就丢弃这个batch的状态
             if start and ready:
-                # intialize states
+                # intialize states,返回0或者None
                 encoder_out = self.model.generate_init_cache()
                 root = PathTrie()
                 # register this sequence
                 self.seq_states[corrid] = [root, encoder_out]
 
+            # 结束的时候准备rescore
             if end and ready:
                 rescore_index[batch_idx] = 1
 
+            # 如果准备好了,则将当前状态加入到trieVector中,这是一个请求批次的内部
             if ready:
                 root, encoder_out = self.seq_states[corrid]
                 trieVector.append(root)
                 batch_idx2_corrid[batch_idx] = corrid
                 batch_encoder_hist.append(encoder_out)
 
+            # 批次数量加1
             batch_idx += 1
 
+        # 设置批次的状态,
         batch_states = [
             trieVector, batch_start, batch_encoder_hist, cur_encoder_out
         ]
+        # 进行推理
         res_sents, new_states = self.model.infer(batch_log_probs,
                                                  batch_log_probs_idx,
                                                  batch_len, rescore_index,
                                                  batch_states)
+        # 获取当前编码器的输出
         cur_encoder_out = new_states
         for i in range(len(res_sents)):
             sent = np.array(res_sents[i])
+            # 获取输出张量的数据类型,创建输出张量
             out_tensor_0 = pb_utils.Tensor("OUTPUT0",
                                            sent.astype(self.output0_dtype))
+            # 创建一个响应,包含输出张量
             response = pb_utils.InferenceResponse(
                 output_tensors=[out_tensor_0])
+            # 将响应对象放到响应列表中
             responses.append(response)
+            # 获取当前序列的 ID
             corr = batch_idx2_corrid[i]
+            # 检查当前批次索引 i 是否在 rescore_index 中。如果在，则表示该序列已经结束。这是上面的END输入的作用。
             if i in rescore_index:
-                # this response ends, remove it
+                # this response ends, remove it通过删除 self.seq_states[corr]，清理已完成的序列状态，释放内存。
                 del self.seq_states[corr]
+            # 没有结束
             else:
+                # 判断是否使用了重打分功能，如果使用了重打分功能，则更新当前序列的状态。
                 if self.model.rescoring:
+                    # 如果当前序列的历史编码器输出为空，则直接将其设置为当前批次的编码器输出 cur_encoder_out[i]。
                     if self.seq_states[corr][1] is None:
                         self.seq_states[corr][1] = cur_encoder_out[i]
+                    # 如果已有历史编码器输出，则将当前批次的编码器输出 cur_encoder_out[i] 拼接到历史输出后面，沿轴 0（时间维度）进行拼接。
                     else:
                         new_hist = torch.cat(
                             [self.seq_states[corr][1], cur_encoder_out[i]],
                             axis=0)
+                        # 更新序列的历史编码器输出为新的拼接结果。
                         self.seq_states[corr][1] = new_hist
 
+        # 确保输入的请求列表 requests 和生成的响应列表 responses 长度一致。防止因为逻辑错误导致请求响应不匹配
         assert len(requests) == len(responses)
+        # 返回结果列表给triton服务器
         return responses
 
     # 结束收尾
