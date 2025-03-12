@@ -157,11 +157,13 @@ class WenetModel(object):
         """
         load hotwords.yaml
         """
+        # 读取hotwords.yaml热词文件
         with open(hotwords_file, 'r', encoding="utf-8") as fin:
             configs = yaml.load(fin, Loader=yaml.FullLoader)
         return configs
 
-    # 解析传入的 model_parameters 字典，并将其值赋给预定义的 model_p 字典中的相应键。这里的数据来自config.pbtxt的parameter部分
+    # 解析传入的 model_parameters 字典，并将其值赋给预定义的 model_p 字典中的相应键。
+    # 这里的数据来自config.pbtxt的parameter部分
     def parse_model_parameters(self, model_parameters):
         # 初始化字典model_p,每个键一个默认值
         model_p = {
@@ -176,7 +178,8 @@ class WenetModel(object):
             "bidecoder": 1
         }
         # get parameter configurations
-        # 遍历 model_parameters 字典中的每一项，键存在于 model_p 中，则根据 model_p 中对应键的类型进行类型转换，并将转换后的值赋给 model_p 中的相应键。
+        # 遍历 model_parameters 字典中的每一项，键存在于 model_p 中，则根据 model_p 中对应键的类型进行类型转换，
+        # 并将转换后的值赋给 model_p 中的相应键。
         for li in model_parameters.items():
             # 获取键值对给key和value
             key, value = li
@@ -267,11 +270,12 @@ class WenetModel(object):
             else:
                 best_sent.append(li[0][1])
 
+        # 使用词表示将每个句子转换为字符串，并返回最终结果。
         final_result = map_batch(best_sent, self.vocab, num_processes)
 
         return final_result, cur_encoder_out
 
-    # 实现了批量CTC前缀束搜索解码器。
+    # 实现了批量CTC前缀束搜索解码器，调用了swig_decoders中的方法。
     def batch_ctc_prefix_beam_search_cpu(self, batch_log_probs_seq,
                                          batch_log_probs_idx, batch_len,
                                          batch_root, batch_start, beam_size,
@@ -295,6 +299,7 @@ class WenetModel(object):
                 batch_log_probs_seq[i][0:cur_len].tolist())
             batch_log_probs_idx_list.append(
                 batch_log_probs_idx[i][0:cur_len].tolist())
+        # 获取结果序列
         score_hyps = ctc_beam_search_decoder_batch(
             batch_log_probs_seq_list, batch_log_probs_idx_list, batch_root,
             batch_start, beam_size, num_processes, blank_id, space_id,
@@ -304,58 +309,84 @@ class WenetModel(object):
     # 批量重打分
     def batch_rescoring(self, score_hyps, hist_enc, hist_mask_len, max_len):
         """
-        score_hyps: [((ctc_score, (id1, id2, id3, ....)), (), ...), ....]
-        hist_enc: [len1xF, len2xF, .....]
-        hist_mask: [1x1xlen1, 1x1xlen2]
-        return bzx1  best_index
+        score_hyps: [((ctc_score, (id1, id2, id3, ....)), (), ...), ....]包含每个批次中候选序列及其CTC分数的列表。
+        hist_enc: [len1xF, len2xF, .....]历史编码器输出的张量列表。
+        hist_mask: [1x1xlen1, 1x1xlen2] 每个历史编码器输出的实际长度。
+        return bzx1  best_index 最佳路径对应的索引
         """
+        # batch_size批次大小
         bz = len(hist_enc)
+        # 编码器输出的特征维度（最后一个维度）
         f = hist_enc[0].shape[-1]
+        # 波束搜索的波束宽度，即保存多少条最佳前缀路径
         beam_size = self.beam_size
+        # 存储每个批次中编码器输出的实际长度。
         encoder_lens = np.zeros((bz, 1), dtype=np.int32)
+        # 存储所有批次的编码器输出，初始化为零。
         encoder_out = torch.zeros((bz, max_len, f), dtype=self.dtype)
+        # 存储所有候选序列的ID列表。
         hyps = []
+        # 存储每个候选序列的CTC分数。
         ctc_score = torch.zeros((bz, beam_size), dtype=self.dtype)
+        # 记录最长候选序列的长度。
         max_seq_len = 0
+        # 处理每个批次的历史编码器输出
         for i in range(bz):
+            # 将每个批次的历史编码器输出复制到 encoder_out 中。
             cur_len = hist_enc[i].shape[0]
             encoder_out[i, 0:cur_len] = hist_enc[i]
+            # 更新 encoder_lens，记录每个批次的实际长度。
             encoder_lens[i, 0] = hist_mask_len[i]
 
-            # process candidate
+            # process candidate处理候选序列
+            # 如果某个批次的候选序列数量少于 beam_size，则补充无效候选序列（分数设为 -10000）。
             if len(score_hyps[i]) < beam_size:
                 to_append = (beam_size - len(score_hyps[i])) * [(-10000, ())]
                 score_hyps[i] = list(score_hyps[i]) + to_append
+            # 遍历每个候选序列，提取其 CTC 分数和 ID 列表，并更新 ctc_score 和 hyps。
             for idx, c in enumerate(score_hyps[i]):
                 score, idlist = c
                 if score < -10000:
                     score = -10000
                 ctc_score[i][idx] = score
                 hyps.append(list(idlist))
+                # 更新 max_seq_len，记录最长候选序列的长度。
                 if len(hyps[-1]) > max_seq_len:
                     max_seq_len = len(hyps[-1])
 
+        # 初始化填充后的候选序列张量。添加 <sos> 和 <eos> 标记，因此最大长度加2。
         max_seq_len += 2
+        # 初始化填充后的候选序列张量，初始值为 <eos>。
         hyps_pad_sos_eos = np.ones((bz, beam_size, max_seq_len),
                                    dtype=np.int64)
         hyps_pad_sos_eos = hyps_pad_sos_eos * self.eos  # fill eos
+        # 如果使用双向解码器，则初始化反向填充后的候选序列张量。
         if self.bidecoder:
             r_hyps_pad_sos_eos = np.ones((bz, beam_size, max_seq_len),
                                          dtype=np.int64)
             r_hyps_pad_sos_eos = r_hyps_pad_sos_eos * self.eos
 
+        # 初始化候选序列长度张量。
         hyps_lens_sos = np.ones((bz, beam_size), dtype=np.int32)
+        # 填充候选序列
         bz_id = 0
+        # 遍历所有候选序列
         for idx, cand in enumerate(hyps):
+            # 计算当前批次的索引 bz_id 和偏移量 bz_offset。
             bz_id = idx // beam_size
             length = len(cand) + 2
             bz_offset = idx % beam_size
+            # 构建带 <sos> 和 <eos> 的填充候选序列 pad_cand。
             pad_cand = [self.sos] + cand + [self.eos]
+            # 将 pad_cand 填充到 hyps_pad_sos_eos 中。
             hyps_pad_sos_eos[bz_id][bz_offset][0:length] = pad_cand
+            # 如果使用双向解码器，构建反向填充候选序列 r_pad_cand 并填充到 r_hyps_pad_sos_eos 中。
             if self.bidecoder:
                 r_pad_cand = [self.sos] + cand[::-1] + [self.eos]
                 r_hyps_pad_sos_eos[bz_id][bz_offset][0:length] = r_pad_cand
+            # 更新 hyps_lens_sos，记录每个候选序列的实际长度。
             hyps_lens_sos[bz_id][idx % beam_size] = len(cand) + 1
+        # 这里直接调用decoder.onnx返回最佳索引，通过最佳索引获得最佳结果
         in0 = pb_utils.Tensor.from_dlpack("encoder_out",
                                           to_dlpack(encoder_out))
         in1 = pb_utils.Tensor("encoder_out_lens", encoder_lens)
@@ -367,14 +398,20 @@ class WenetModel(object):
             input_tensors.append(in4)
         in5 = pb_utils.Tensor.from_dlpack("ctc_score", to_dlpack(ctc_score))
         input_tensors.append(in5)
+        # 发送数据
         request = pb_utils.InferenceRequest(
             model_name='decoder',
             requested_output_names=['best_index'],
             inputs=input_tensors)
+        # 发送推理请求启动推理
         response = request.exec()
+        # 从响应中获取名为 best_index 的输出张量。
         best_index = pb_utils.get_output_tensor_by_name(response, 'best_index')
+        # 使用 from_dlpack 将张量转换为 PyTorch 张量。
         best_index = from_dlpack(best_index.to_dlpack()).clone()
+        # 将张量移动到 CPU 并转换为 NumPy 数组。
         best_index = best_index.cpu().numpy()[:, 0]
+        # 返回最佳索引数组。
         return best_index
 
     def __del__(self):

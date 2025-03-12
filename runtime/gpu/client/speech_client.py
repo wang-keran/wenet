@@ -175,6 +175,8 @@ class StreamingSpeechClient(object):
                 end = True
 
             # 使用 self.triton_client.infer 方法向Triton推理服务器发送推理请求，并获取响应。
+            # 这里发送了开始和结束位置，这样就可以知道是不是第一个和最后一个片段了
+            # 如果想要每块音频单独作为一个请求，可以将 sequence_start 和 sequence_end 都设置为 True。
             response = self.triton_client.infer(
                 self.model_name,
                 inputs,

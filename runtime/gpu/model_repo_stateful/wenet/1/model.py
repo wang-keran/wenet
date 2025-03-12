@@ -27,6 +27,13 @@ from wenet_onnx_model import WenetModel
 from torch.utils.dlpack import from_dlpack
 
 
+# Python模型使用CPU推理的原因：
+# 1. 模型部署到GPU上，GPU的显存有限，需要减少模型参数的数量，因此需要使用模型压缩工具进行模型压缩。
+# 2. GPU数量有限，这样可以减少GPU的成本
+# 3. python模型的输入输出相较于onnx来说过多，而GPU适合处理大量重复计算，所以使用CPU进行推理
+# 4. python模型比onnx模型更轻量化，适合使用CPU进行推理
+# 5. 延迟控制：CPU推理的延迟比GPU推理的延迟要低，适合对延迟要求较高的场景
+# triton会根据config.pbtxt中模型部署的位置自动把数据传输到CPU或者GPU上
 class TritonPythonModel:
     """Your Python model must use the same class name. Every Python model
     that is created must have "TritonPythonModel" as the class name.
@@ -110,7 +117,8 @@ class TritonPythonModel:
             # print("in_0.numpy() is :",in_0.as_numpy())
             # print("in_0.numpy[0] is :",in_0.as_numpy()[0])
 
-            # ()[0]也是去除了批次大小(去除第一个维度)
+            # ()[0]也是去除了批次大小(去除第一个维度)，
+            # 使用triton类型的数据方便在triton后端传递和CPU模型GPU模型间传递。
             in_1 = pb_utils.get_input_tensor_by_name(request, "log_probs_idx")
             batch_log_probs_idx.append(in_1.as_numpy()[0])
             if self.model.rescoring:
@@ -122,6 +130,9 @@ class TritonPythonModel:
                 # 这里不转化为numpy数组,因为后续还需要使用pytorch张量进行操作,直接使用pytorch进行推理
                 # PyTorch 张量支持动态计算图和自动求导等功能，更适合复杂的模型操作。后面重打分推理需要使用这个序列
                 # 所以不能动,必须保持数据是pytorch格式,方便后续操作
+                # 这里的数据最后发送给了decoder.onnx，而decoder.onnx使用GPU推理，所以需要转化为pytorch张量
+                # 这是GPU上的数据，直接在GPU上克隆一份，
+                # 你要是使用numpy提取就是有三个副本，CPU一个GPU两个，dlpack就是两个副本
                 in_2 = from_dlpack(in_2.to_dlpack()).clone()
                 # cur_encoder_out:用于存储当前批次中所有请求的 chunk_out 数据。
                 # 假设 in_2 是一个包含单个元素的张量列表，去掉第一个维度并添加到 cur_encoder_out 列表中。
@@ -129,7 +140,15 @@ class TritonPythonModel:
                 cur_encoder_out.append(in_2[0])
             in_3 = pb_utils.get_input_tensor_by_name(request, "chunk_out_lens")
             # 转成numpy数组进行存储,这里只有一个数据维度表示长度,不需要去掉批次.
-            # 保持numpy数组存储为了方便提取数据,不需要进行推理
+            # 保持numpy数组存储为了方便提取数据,方便在CPU上进行运算，所以使用numpy数组
+            # 如果in_3是在GPU上,就直接复制到CPU上并转换成numpy数组
+            # 检查 in_3 是否在 GPU 上,直接triton后端给送到CPU上进行操作
+            dlpack_tensor = in_3.to_dlpack()
+            torch_tensor = from_dlpack(dlpack_tensor)
+            if torch_tensor.is_cuda:
+                print("in_3 is on GPU")
+            else:
+                print("in_3 is on CPU")
             batch_len.append(in_3.as_numpy())
 
             # 这是config.pbtxt的sequence_batching中的参数,作用是初始化配置适应不同的模型,这两个[0的作用是什么]
@@ -194,7 +213,7 @@ class TritonPythonModel:
             # 批次数量加1
             batch_idx += 1
 
-        # 设置批次的状态,
+        # 设置批次的状态,上面把切块的数据组合成一个批次进行重打分
         batch_states = [
             trieVector, batch_start, batch_encoder_hist, cur_encoder_out
         ]

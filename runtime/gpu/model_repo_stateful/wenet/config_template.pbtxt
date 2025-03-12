@@ -139,6 +139,6 @@ output [
 instance_group [
     {
       count: 2
-      kind: KIND_GPU
+      kind: KIND_CPU    # 这里使用CPU进行推理加载模型，减少GPU负担，
     }
 ]
