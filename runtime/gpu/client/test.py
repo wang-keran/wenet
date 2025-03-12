@@ -160,6 +160,7 @@ with grpcclient.InferenceServerClient(url=FLAGS.url, verbose=FLAGS.verbose) as t
     predictions = []
     #语音识别
     result = speech_client.recognize(x)
+    print("最终结果为：",result)
 
 end_time=time.time()
 print(f"运行时间为：{end_time-start_time}秒")

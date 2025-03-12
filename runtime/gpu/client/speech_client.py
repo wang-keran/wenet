@@ -187,8 +187,10 @@ class StreamingSpeechClient(object):
             idx += 1
             print("response的结果是：",response)
             # 获取响应结果，并通过 response.as_numpy("TRANSCRIPTS")[0].decode("utf-8") 解码出转录文本。
-            time.sleep(1)
+            # time.sleep(5)
+            # 先接收numpy数组，为了方便传递数据和提取数据所以转换成了numpy数组，之后去掉了第一个维度，最后解码成utf8
             result = response.as_numpy("TRANSCRIPTS")[0].decode("utf-8")
             # 输出结果，打印当前片段的索引和转录结果。
             print("Get response from {}th chunk: {}".format(idx, result))
+            # time.sleep(5)
         return [result]
