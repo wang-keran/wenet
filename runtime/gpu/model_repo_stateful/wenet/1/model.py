@@ -281,6 +281,8 @@ class TritonPythonModel:
 # 也可以提高GPU的效率，节省成本。
 
 # START,READY,CORRID,END这些参数的作用可以少传或者不传吗？
-# 不行，这些参数是必须的，不能少传或者不传。最多少传END参数，等待5秒后自动结束，但是这样会影响效率，所以最好都要传递进来
-# 
+# 在这个模型中不行，这些参数是必须的，不能少传或者不传。最多少传END参数，等待5秒后自动结束，但是这样会影响效率，所以最好都要传递进来
+# 但是在其他模型中，可以根据需要来设置参数，也可以不设置这些参数，比如非流式的GPU模型，当然非流式的也根本没办法使用这些参数因为不符合语法规则，但是流式模型确实可以选择其中的部分参数进行使用。
+# 在同一个sequence_id下的序列中，triton的所有模型都可以获取数据，是triton统一管理的，不是链式传递的，所以所有模型都可以访问。
+# https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/architecture.html#stateful-models
 # 
