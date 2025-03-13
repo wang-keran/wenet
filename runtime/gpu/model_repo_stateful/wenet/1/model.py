@@ -268,3 +268,19 @@ class TritonPythonModel:
         """
         print('Cleaning up...')
         del self.model
+
+
+# 为什么除了重打分的代码在CPU上运行而其他模型在GPU上运行？
+# 1.model.py在CPU上运行的原因：model.py模型输入输出类型过多，不适合使用GPU进行推理，GPU适合大量重复计算而model.py全是
+# 复杂少量的计算，而CPU最适合这种复杂少量轻量化的计算，所以放在CPU上运行。
+# 这也导致了in_2数据使用pytorch类型而其他数据使用numpy数据，因为in_2数据要用到decoder.onnx推理中，
+# decoder.onnx模型使用GPU加速推理，pytorch也能被GPU加速，numpy数据主要使用CPU推理，numpy底层由C语言实现，最适合在CPU上运行。
+# 而且将部分模型放在CPU上运行，可以减少GPU的显存占用，提高GPU的效率，节省成本。
+# 2.decoder.onnx和encoder.onnx模型原本都是pytorch模型导出的模型，可以被GPU加速，所以使用GPU进行推理。
+# 3.特征提取模型使用GPU进行推理因为Kaldi的模型使用GPU进行推理加速，所以使用GPU进行推理。这样既减少了GPU的显存占用，
+# 也可以提高GPU的效率，节省成本。
+
+# START,READY,CORRID,END这些参数的作用可以少传或者不传吗？
+# 不行，这些参数是必须的，不能少传或者不传。最多少传END参数，等待5秒后自动结束，但是这样会影响效率，所以最好都要传递进来
+# 
+# 

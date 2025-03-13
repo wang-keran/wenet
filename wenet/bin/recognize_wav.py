@@ -380,6 +380,7 @@ def load_data_test():
     wav_file = '/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/long.wav'
     start_read_wav = time.perf_counter()
     sample = load_data(wav_file)
+    # 在init_tokenizer的tokenizer_conf中有词表的路径，就是同路径下的units.txt
     tokenizer = init_tokenizer(configs)
     # 分词器不能删除，会报错：Traceback (most recent call last):
     #   File "/home/wangkeran/桌面/WENET/wenet/wenet/bin/recognize_wav.py", line 479, in <module>
