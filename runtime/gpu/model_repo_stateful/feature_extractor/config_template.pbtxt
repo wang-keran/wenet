@@ -17,6 +17,7 @@ name: "feature_extractor"
 backend: "python"
 max_batch_size: 512
 
+# parameters:自定义模型参数在模型的执行期间使用，通常作用于单个模型实例，主要用于在模型执行过程中传递特定的配置信息或控制模型行为。
 parameters [
   {
     key: "frame_length_ms",
@@ -35,6 +36,7 @@ parameters [
     value: { string_value: "#chunk_size_in_seconds" }
   }
 ]
+# 配置批处理信息，在所有模型之间共享，使用triton后端同时更新，主要应用于需要维护输入序列状态的模型。
 sequence_batching{
     max_sequence_idle_microseconds: 5000000
     oldest {

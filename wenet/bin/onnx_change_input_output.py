@@ -3,7 +3,7 @@ from onnx import helper
 
 print("加载onnx模型")
 # 这里需要修改模型路径
-model = onnx.load("encoder.onnx")
+model = onnx.load("/home/wangkeran/桌面/WENET/test-cpu-non-streaming-output/encoder.onnx")
 print("加载完成，准备修改输入输出名称")
 # 创建全0常量节点
 offset_zero = helper.make_tensor(
@@ -31,4 +31,4 @@ for i, input in enumerate(model.graph.input):
         del model.graph.input[i]
         break
 print("修改完成，准备保存模型")
-onnx.save(model, "encoder_fixed.onnx")
+onnx.save(model, "/home/wangkeran/桌面/WENET/test-cpu-non-streaming-output/encoder_fixed.onnx")
