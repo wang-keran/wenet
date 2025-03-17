@@ -67,10 +67,10 @@ ensemble_scheduling {
       key: "chunk"
       value: "CHUNK"
     }
-    output_map {
-      key: "offset"
-      value: "OFFSET"
-    }
+   # output_map {
+   #   key: "offset"
+   #   value: "OFFSET"
+   # }
     output_map {
       key: "att_cache"
       value: "ATT_CACHE"
@@ -90,10 +90,10 @@ ensemble_scheduling {
       value: "CHUNK"
     }
     # 输入特征提取后的音频长度（帧或者毫秒）
-    input_map {
-      key: "offset"
-      value: "OFFSET"
-    }
+    #input_map {
+    #  key: "offset"
+    #  value: "OFFSET"
+    #}
     input_map {
       key: "att_cache"
       value: "ATT_CACHE"
@@ -139,15 +139,15 @@ ensemble_scheduling {
           value: "output"
       }
       # 接收编码器的输出长度作为输入
-      input_map {
-          key: "r_att_cache"
-          value: "r_att_cache"
-      }
+      #input_map {
+      #    key: "r_att_cache"
+      #    value: "r_att_cache"
+      #}
       # 接受束搜索解码的概率作为输入，改名为batch_log_probs：迭代过的束搜索解码的概率
-      input_map {
-          key: "r_cnn_cache"
-          value: "r_cnn_cache"
-      }
+      #input_map {
+      #    key: "r_cnn_cache"
+      #    value: "r_cnn_cache"
+      #}
       # 接受束搜索解码的概率索引作为输入，改名为batch_log_probs_idx：迭代过的束搜索解码的概率索引
       input_map {
           key: "probs"

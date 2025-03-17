@@ -26,12 +26,12 @@ input [
     data_type: TYPE_FP32
     dims: [1, -1, 80]  #batch,decoding_window,feature_size
   },
-  {
-    name: "offset"
-    data_type: TYPE_INT64
-    dims: [ ]           # offset,这里要进行修改，因为非批次的不支持reshape，要对export_onnx_cpu动手，不仅是改输入，还要改输入对数据的影响
-    #reshape: {shape: [ ]}
-  },
+  #{
+  #  name: "offset"
+  #  data_type: TYPE_INT64
+  #  dims: [ ]           # offset,这里要进行修改，因为非批次的不支持reshape，要对export_onnx_cpu动手，不仅是改输入，还要改输入对数据的影响
+  #  #reshape: {shape: [ ]}
+  #},
   {
     name: "att_cache"
     data_type: TYPE_FP32

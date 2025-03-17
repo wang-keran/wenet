@@ -61,11 +61,11 @@ class TritonPythonModel:
 
         # 获取输出的张量的类型（speech）
         # Get OUTPUT1 configuration
-        output1_config = pb_utils.get_output_config_by_name(
-            model_config, "offset")
+        #output1_config = pb_utils.get_output_config_by_name(
+        #    model_config, "offset")
         # Convert Triton types to numpy types，将Triton类型转换为numpy类型
-        self.output1_dtype = pb_utils.triton_string_to_numpy(
-            output1_config['data_type'])
+        #self.output1_dtype = pb_utils.triton_string_to_numpy(
+        #    output1_config['data_type'])
         
         # 获取输出的张量的类型（att_cache）
         output2_config = pb_utils.get_output_config_by_name(
@@ -190,7 +190,7 @@ class TritonPythonModel:
             batch = 1
             decoding_window = speech.shape[1]  # 动态获取 decoding_window
             feature_size = self.feature_size
-            offset = 0
+            #offset = 0
             num_blocks = 12
             head = 4
             required_cache_size = decoding_window  # 根据实际情况调整
@@ -210,19 +210,21 @@ class TritonPythonModel:
             # 将张量转换为DLpack格式
             chunk_dlpack = to_dlpack(chunk_output)
             # 这里的offset是一个标量，所以需要将其转换为张量，并转换为DLpack格式
-            offset_dlpack = to_dlpack(torch.tensor([offset], dtype=self.output1_dtype))
+            #offset_dlpack = to_dlpack(torch.tensor([offset], dtype=self.output1_dtype))
             att_cache_dlpack = to_dlpack(att_cache_out)
             cnn_cache_dlpack = to_dlpack(cnn_cache_out)
         
             # 封装为 pb_utils.Tensor 对象
             chunk_tensor = pb_utils.Tensor("chunk", chunk_dlpack)
-            offset_tensor = pb_utils.Tensor("offset", offset_dlpack)
+            #offset_tensor = pb_utils.Tensor("offset", offset_dlpack)
             att_cache_tensor = pb_utils.Tensor("att_cache", att_cache_dlpack)
             cnn_cache_tensor = pb_utils.Tensor("cnn_cache", cnn_cache_dlpack)
             
             # 创建推理响应返回的 Tensor 对象
+            #inference_response = pb_utils.InferenceResponse(
+            #    output_tensors=[chunk_tensor, offset_tensor, att_cache_tensor, cnn_cache_tensor])
             inference_response = pb_utils.InferenceResponse(
-                output_tensors=[chunk_tensor, offset_tensor, att_cache_tensor, cnn_cache_tensor])
+                output_tensors=[chunk_tensor, att_cache_tensor, cnn_cache_tensor])
             
             responses.append(inference_response)
         return responses

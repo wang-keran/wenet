@@ -20,6 +20,9 @@ const_node = helper.make_node(
     value=offset_zero
 )
 print("修改完成，准备修改模型")
+# 添加常量节点到模型图中
+model.graph.node.insert(0,const_node)
+
 # 替换所有使用原offset输入的地方
 for node in model.graph.node:
     if "offset" in node.input:  # 替换为实际offset输入名称
