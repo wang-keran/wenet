@@ -107,15 +107,15 @@ ensemble_scheduling {
       key: "output"
       value: "output"
     }
-    output_map {
-      key: "r_att_cache"
-      value: "r_att_cache"
-    }
+    #output_map {
+    #  key: "r_att_cache"
+    #  value: "r_att_cache"
+    #}
     # 输出编码后序列的长度
-    output_map {
-      key: "r_cnn_cache"
-      value: "r_cnn_cache"
-    }
+    #output_map {
+    #  key: "r_cnn_cache"
+    #  value: "r_cnn_cache"
+    #}
   },
   {
     model_name: "ctc"

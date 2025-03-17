@@ -52,17 +52,17 @@ output [
     name: "output"
     data_type: TYPE_FP32
     dims: [-1, -1, 256]   # [batch, time_steps, feature_size]
-  },
-  {
-    name: "r_att_cache"
-    data_type: TYPE_FP32
-    dims: [12, 4, -1, 128] # 第二个是浮动维度，时间的缓存步数，但是前面这四个不知道是什么
-  },
-  {
-    name: "r_cnn_cache"
-    data_type: TYPE_FP32
-    dims: [12, 1, 256, -1]
   }
+  #{
+  #  name: "r_att_cache"
+  #  data_type: TYPE_FP32
+  #  dims: [12, 4, -1, 128] # 第二个是浮动维度，时间的缓存步数，但是前面这四个不知道是什么
+  #},
+  #{
+  #  name: "r_cnn_cache"
+  #  data_type: TYPE_FP32
+  #  dims: [12, 1, 256, -1]
+  #}
 ]
 
 
