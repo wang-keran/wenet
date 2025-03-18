@@ -146,3 +146,11 @@ ensemble_scheduling {
 #FLOAT16	      TYPE_FP16
 #INT8	          TYPE_INT8
 #UINT8	        TYPE_UINT8
+#BOOL           TYPE_BOOL
+#UINT16         TYPE_UINT16
+#UINT32         TYPE_UINT32 
+#UINT64         TYPE_UINT64
+#INT16          TYPE_INT16
+#FLOAT16        TYPE_FP16
+#DOUBLE         TYPE_FP64
+#STRING         TYPE_STRING
