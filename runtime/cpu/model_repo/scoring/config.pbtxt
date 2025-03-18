@@ -15,7 +15,7 @@
 
 name: "scoring"
 backend: "python"
-max_batch_size: 64
+max_batch_size: 0
 
 parameters [
   {
@@ -65,9 +65,9 @@ output [
     dims: [1]
   }
 ]
-dynamic_batching {
-    preferred_batch_size: [ 16, 32 ]
-  }
+#dynamic_batching {
+#    preferred_batch_size: [ 16, 32 ]
+#  }
 instance_group [
     {
       count: 4

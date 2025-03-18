@@ -17,7 +17,7 @@
 # 这个文件是所有模型 ensemble 的配置文件，也可以说是总管输入输出
 name: "attention_rescoring"
 platform: "ensemble"
-max_batch_size: 64 #MAX_BATCH
+max_batch_size: 0 #MAX_BATCH
 
 # 这是一个音频数据，数据类型为 TYPE_FP32，维度为 [-1]，表示这是一个一维数组，长度未知。
 input [
@@ -156,7 +156,7 @@ ensemble_scheduling {
       # 输出最终序列
       output_map {
           key: "OUTPUT0"
-          value: "TRANSCRIPTS"
+          value: "TRANSCRIPTS"  #TRANSCRIPTS表示集成模型的最终输出
       }
   }
  ]

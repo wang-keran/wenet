@@ -442,7 +442,7 @@ class TritonPythonModel:
             inputs=input_tensors)
 
         # 新的decoder返回score和r_score，需要回来计算最终的得分,reverse_weight=0.3，这个与模型相关，从train.yaml中找到
-        #还差ctc_scores[i]和ctc_weight这两个变量,ctc_weight=0.3，这个从预训练模型的参数中找到
+        # 还差ctc_scores[i]和ctc_weight这两个变量,ctc_weight=0.3，这个从预训练模型的参数中找到
         
         inference_response = inference_request.exec()
         if inference_response.has_error():
