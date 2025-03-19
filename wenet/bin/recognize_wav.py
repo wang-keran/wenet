@@ -33,7 +33,8 @@ import pdb
 def get_args():
     parser = argparse.ArgumentParser(description='recognize with your model')
     parser.add_argument('--config',  help='config file'
-                        ,default="/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/train.yaml"
+                        #,default="/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/train.yaml"
+                        ,default="/home/wangkeran/桌面/WENET/librispeech_u2pp_conformer_exp/20210610_u2pp_conformer_exp_librispeech/train.yaml"
                         )
     parser.add_argument('--test_data', help='test data file'
                         ,default = "inference/data.list"
@@ -50,8 +51,8 @@ def get_args():
                         help='gpu id for this rank, -1 for cpu')
     # 与recognize一样
     parser.add_argument('--checkpoint',  help='checkpoint model'
-                        ,default="/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/final.pt"
-                        #default="/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/final.pt"
+                        #,default="/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/final.pt"
+                        ,default="/home/wangkeran/桌面/WENET/librispeech_u2pp_conformer_exp/20210610_u2pp_conformer_exp_librispeech/final.pt"
                         )
     # 这里和decode用，与recognize一样
     parser.add_argument('--beam_size',
@@ -190,7 +191,8 @@ def get_args():
                                 option: decoding-graph, deep-biasing''')
     parser.add_argument('--context_list_path',
                         type=str,
-                        default='/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/units.txt',
+                        # default='/home/wangkeran/桌面/WENET/aishell_u2pp_conformer_exp/20210601_u2++_conformer_exp_aishell/units.txt',
+                        default="/home/wangkeran/桌面/WENET/librispeech_u2pp_conformer_exp/20210610_u2pp_conformer_exp_librispeech/words.txt",
                         help='Context list path')
     parser.add_argument('--context_graph_score',
                         type=float,
@@ -202,7 +204,8 @@ def get_args():
 
 def load_data(wav_file):
     sample = {}
-    wav_file = '/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/mid.wav'
+    #wav_file = '/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/mid.wav'
+    #wav_file='/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/common_voice_en_1044.wav'
     # with io.BytesIO(wav_file) as file_obj:
     waveform, sample_rate = torchaudio.load(wav_file)
             # del wav_file
@@ -366,7 +369,7 @@ def padding(data):
         speaker = torch.tensor([sample[i]['speaker'] for i in order],
                                dtype=torch.int32)
         batch['speaker'] = speaker
-    print("******","padding","*******")
+    #print("******","padding","*******")
     return batch
 def load_data_test():
     logging.basicConfig(level=logging.DEBUG,
@@ -377,7 +380,8 @@ def load_data_test():
         # print("配置文件是：")
         # print(configs)
         # print("配置文件打印结束")
-    wav_file = '/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/long.wav'
+    #wav_file = '/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/long.wav'
+    wav_file='/home/wangkeran/桌面/WENET/wenet/runtime/gpu/client/test_wavs/common_voice_en_1044.wav'
     start_read_wav = time.perf_counter()
     sample = load_data(wav_file)
     # 在init_tokenizer的tokenizer_conf中有词表的路径，就是同路径下的units.txt
@@ -442,13 +446,13 @@ def load_data_test():
         batch= sample
         keys = batch["keys"] 
         feats = batch["feats"].to(device)# [1,798,80],批次，帧数（批次大小），一帧的维度
-        print("main process \n",feats,feats.shape)
+        #print("main process \n",feats,feats.shape)
         target = batch["target"].to(device) # token的数字,和units文字对应
         feats_lengths = batch["feats_lengths"].to(device) #798
-        print("feats_lengths:",feats_lengths)
+        #print("feats_lengths:",feats_lengths)
         # 这里打个断点
         # pdb.set_trace() 
-        print("断点调试测试")
+        #print("断点调试测试")
         target_lengths = batch["target_lengths"].to(device) # 16
         results = model.decode(
             args.modes,
@@ -464,21 +468,25 @@ def load_data_test():
             blank_id=blank_id,
             blank_penalty=args.blank_penalty,
             length_penalty=args.length_penalty)
-        print("返回结果是：",results.items())
+        #print("返回结果是：",results.items())
         for i, key in enumerate(keys):
             for mode, hyps in results.items(): #dict:[keys，value]
                 tokens = hyps[i].tokens
                 #time.sleep(3)      # 输出调试的
                 #解码结果，输出的是keys和语音识别文本
-                line = '{} {}'.format(key, tokenizer.detokenize(tokens)[0]) 
-                print("一行数据是",line)
+                #line = '{} {}'.format(key, tokenizer.detokenize(tokens)[0]) 
+                line =  tokenizer.detokenize(tokens)[0]  # 只保留识别结果文本
+                #print("一行数据是",line)
                 logging.info('{} {}'.format(mode.ljust(max_format_len), #解码方法
-                                            line))
+                                           line))
+                #logging.info('{} {}'.format('result:',line))
+                # line中是真正的最终输出结果
+                # print(line)
                 # logging.info('{} {}'.format('result:',line))
                 files[mode].write(line + '\n')
     end = time.perf_counter()
     runTime = end - start + runTime_read_wav
-    print("更精确的运行时间为：", runTime, "秒")
+    #print("更精确的运行时间为：", runTime, "秒")
     for mode, f in files.items():
         f.close()
     return sample
@@ -492,6 +500,6 @@ if __name__ == '__main__':
     runTime = end - start
     runTime_ms = runTime * 1000
     rtf=runTime/8
-    print("运行时间：", runTime, "秒")
-    print("运行时间：", runTime_ms, "毫秒")
-    print("RTF为：",rtf)
+   # print("运行时间：", runTime, "秒")
+   # print("运行时间：", runTime_ms, "毫秒")
+   # print("RTF为：",rtf)
