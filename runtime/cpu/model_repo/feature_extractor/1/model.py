@@ -143,6 +143,7 @@ class TritonPythonModel:
           A list of pb_utils.InferenceResponse. The length of this list must
           be the same as `requests`
         """
+        print("********************************start feature extract********************************")
         batch_count = []
         total_waves = []
         batch_len = []
@@ -151,7 +152,7 @@ class TritonPythonModel:
             input0 = pb_utils.get_input_tensor_by_name(request, "wav")
             input1 = pb_utils.get_input_tensor_by_name(request, "wav_lens")
 
-            cur_b_wav = input0.as_numpy()
+            cur_b_wav = input0.as_numpy()   # 如果是动态批次
             cur_b_wav = cur_b_wav * (1 << 15)  # b x -1
             cur_b_wav_lens = input1.as_numpy()  # b x 1
             cur_batch = cur_b_wav.shape[0]
@@ -190,7 +191,7 @@ class TritonPythonModel:
             batch = 1
             decoding_window = speech.shape[1]  # 动态获取 decoding_window
             feature_size = self.feature_size
-            #offset = 0
+            offset = 0
             num_blocks = 12
             head = 4
             required_cache_size = decoding_window  # 根据实际情况调整
@@ -227,4 +228,5 @@ class TritonPythonModel:
                 output_tensors=[chunk_tensor, att_cache_tensor, cnn_cache_tensor])
             
             responses.append(inference_response)
+            print("********************************end feature extract********************************")
         return responses

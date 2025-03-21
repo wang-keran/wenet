@@ -19,19 +19,19 @@ max_batch_size: 0
 
 parameters [
   {
-    key: "vocabulary",
+    key: "vocabulary"
     value: { string_value: "/ws/onnx_model/words.txt"}
   },
   {
-    key: "bidecoder",     # 使用了双向解码器，需要修改model.py
+    key: "bidecoder"    # 使用了双向解码器，需要修改model.py
     value: { string_value: "1"}
   },
   {
-    key: "lm_path",
+    key: "lm_path"
     value: { string_value: "None"}
   },
   {
-   key: "hotwords_path",
+   key: "hotwords_path"
    value : { string_value: "None"}
   }
 ]
@@ -42,19 +42,11 @@ input [
     data_type: TYPE_FP32
     dims: [-1, -1, 256]
   },
-  #{
-  #  name: "r_att_cache"
-  #  data_type: TYPE_FP32
-  #  dims: [12, 4, -1, 128] # 第二个是浮动维度，时间的缓存步数，但是前面这四个不知道是什么
-  #},
-  #{
-  #  name: "r_cnn_cache"
-  #  data_type: TYPE_FP32
-  #  dims: [12, 1, 256, -1]
-  #},
+ 
   {
-    name: "probs"           # 这里可能是ctc_log_probs,#(batch_size, time_steps, vocab_size) 批次大小、时间步数、字符集大小。
-    dims: [1, -1, 4233]
+    name: "probs"       
+    data_type: TYPE_FP32    # 这里可能是ctc_log_probs,#(batch_size, time_steps, vocab_size) 批次大小、时间步数、字符集大小。
+    dims: [-1, -1, 4233]
   }
 ]
 # 最后一步输出的
@@ -65,9 +57,11 @@ output [
     dims: [1]
   }
 ]
-#dynamic_batching {
-#    preferred_batch_size: [ 16, 32 ]
-#  }
+
+dynamic_batching {
+    preferred_batch_size: [ 16, 32 ]
+  }
+
 instance_group [
     {
       count: 4

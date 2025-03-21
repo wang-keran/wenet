@@ -486,7 +486,7 @@ def load_data_test():
                 files[mode].write(line + '\n')
     end = time.perf_counter()
     runTime = end - start + runTime_read_wav
-    #print("更精确的运行时间为：", runTime, "秒")
+    print("更精确的运行时间为：", runTime, "秒")
     for mode, f in files.items():
         f.close()
     return sample

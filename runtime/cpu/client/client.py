@@ -171,6 +171,7 @@ if __name__ == "__main__":
             idx, audio_files = client_files
             predictions = []
             for li in audio_files:
+                print("进入识别")
                 result = speech_client.recognize(li, idx)
                 print("Recognized {}:{}".format(li, result[0]))
                 predictions += result

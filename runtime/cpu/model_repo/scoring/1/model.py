@@ -57,9 +57,12 @@ class TritonPythonModel:
         # Get OUTPUT0 configuration
         output0_config = pb_utils.get_output_config_by_name(
             model_config, "OUTPUT0")
+        if 'data_type' not in output0_config:
+            raise ValueError("Output 'OUTPUT0' does not specify 'data_type',OUTPUT0没有加载进来")
         # Convert Triton types to numpy types
         self.out0_dtype = pb_utils.triton_string_to_numpy(
             output0_config['data_type'])
+        # print(f"初始化的数据类型为：Initialized OUTPUT0 data_type: {self.out0_dtype}")
 
         # Get INPUT configuration
         encoder_config = pb_utils.get_input_config_by_name(
@@ -277,6 +280,7 @@ class TritonPythonModel:
           be the same as `requests`
         """
 
+        print("********************************start scoring********************************")
         responses = []
 
         # Every Python backend must iterate through list of requests and create
@@ -301,12 +305,15 @@ class TritonPythonModel:
         ctc_weight = 0.3
         prefix_len = 1
         
+        print("********************************start get requests********************************")
         # 批次是1的情况下只循环一次，只有一条音频的非流式语音识别就是这种情况
         for request in requests:
             # Perform inference on the request and append it to responses list...
+            print("********************************start get input from encoder and ctc********************************")
             in_0 = pb_utils.get_input_tensor_by_name(request, "output") # 多了时间维度T，中间那个变量
             in_1 = pb_utils.get_input_tensor_by_name(request,
                                                      "probs")
+            print("********************************finish get input from encoder and ctc********************************")
             
             batch_log_probs,batch_log_probs_idx = torch.topk(in_1,self.beam_size,dim=2) #修改一下中间的10,不一定是正确的beam_size
 
@@ -355,6 +362,7 @@ class TritonPythonModel:
                 batch_start.append(True)
                 total += 1
 
+        print("********************************start ctc_beam_search_decoder_batch********************************")
         # 返回路径的总概率（总得分）和路径的解码结果，按总概率从高到底排序，无需再排序了，只返回了前beam_size个路径
         # 返回的结果数量和批次大小batch_size相同
         score_hyps = ctc_beam_search_decoder_batch(
@@ -373,6 +381,7 @@ class TritonPythonModel:
         all_ctc_score = []
         max_seq_len = 0
         # 处理前缀束搜索的结果
+        print("********************************start calculate ctc_beam_search_decoder_batch********************************")
         for seq_cand in score_hyps:
             # if candidates less than beam size
             # 现在还差hyps,hyps_lens的运算，准备给decoder输入
@@ -429,6 +438,7 @@ class TritonPythonModel:
         in_hyps_lens_sos_origin = in_hyps_lens_sos
         _ = in_hyps_pad_sos_eos[0]
         _ = in_hyps_lens_sos[0]
+        print("*******************************************************start decoder*******************************************************")
         # hyps [0,0],hyps_lens [0],encoder_out [1,0,256]，现在的in_hyps_pad_sos_eos就是缺少total维度的了
         in_tensor_0 = pb_utils.Tensor("hyps", in_hyps_pad_sos_eos)
         in_tensor_1 = pb_utils.Tensor("hyps_lens", in_hyps_lens_sos)
@@ -445,6 +455,7 @@ class TritonPythonModel:
         # 还差ctc_scores[i]和ctc_weight这两个变量,ctc_weight=0.3，这个从预训练模型的参数中找到
         
         inference_response = inference_request.exec()
+        print("******** start tuili *******")
         if inference_response.has_error():
             raise pb_utils.TritonModelException(
                 inference_response.error().message())

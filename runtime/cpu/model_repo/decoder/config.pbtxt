@@ -53,7 +53,7 @@ output [
 ]
 
 #dynamic_batching {
-#    preferred_batch_size: [ 16, 32 ,10, 20, 200 ]    # 这里是动态维度默认先尝试16，然后尝试32的意思
+#    preferred_batch_size: [ 16, 32  ]    # 这里是动态维度默认先尝试16，然后尝试32的意思
 #  }
 
 instance_group [

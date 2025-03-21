@@ -2,7 +2,9 @@ import onnx
 import os
 
 # 设置模型路径
-model_path = "/home/wangkeran/桌面/WENET/test-cpu-non-streaming-output/encoder_fixed.onnx"
+#model_path = "/home/wangkeran/桌面/WENET/test-cpu-non-streaming-output/encoder.onnx"
+model_path = "/home/wangkeran/桌面/WENET/aishellout-streaming/encoder.onnx"
+#model_path = "/home/wangkeran/桌面/WENET/aishellout-non-streaming/encoder.onnx"
 print("模型路径：",model_path)
 
 # 检查模型文件是否存在

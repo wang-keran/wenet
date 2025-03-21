@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tritonclient.utils import np_to_triton_dtype
+from tritonclient.utils import np_to_triton_dtype,InferenceServerException
 import numpy as np
 import math
 import soundfile as sf
@@ -34,6 +34,8 @@ class OfflineSpeechClient(object):
         # 将读取的音频数据转换为适合模型输入的格式，并计算音频数据的长度。
         samples = np.array([waveform], dtype=np.float32)
         lengths = np.array([[len(waveform)]], dtype=np.int32)
+        print("音频：", samples)
+        print("音频长度：", lengths)
         # better pad waveform to nearest length here
         # target_seconds = math.cel(len(waveform) / sample_rate)
         # target_samples = np.zeros([1, target_seconds  * sample_rate])
@@ -55,12 +57,17 @@ class OfflineSpeechClient(object):
         # 这行代码的作用是创建一个包含推理请求输出的列表，用于指定模型推理时需要返回的输出
         outputs = [self.protocol_client.InferRequestedOutput("TRANSCRIPTS")]
         # 给 Triton 推理服务器发送推理请求
-        response = self.triton_client.infer(
-            self.model_name,
-            inputs,
-            request_id=str(sequence_id),
-            outputs=outputs,
-        )
+        print("发送请求")
+        try:
+            response = self.triton_client.infer(
+                self.model_name,
+                inputs,
+                request_id=str(sequence_id),
+                outputs=outputs,
+            )
+        except InferenceServerException as e:
+            print(f"Triton Error: {e.__dict__}")  # 直接打印异常的属性，看看具体返回了什么
+        print("接收请求")
         # 获取推理结果
         decoding_results = response.as_numpy("TRANSCRIPTS")[0]
         # 这段代码的作用是处理推理结果，将其转换为字符串格式，并返回结果。如果结果是一个 NumPy 数组，则将其拼接成一个字符串；否则直接解码为字符串。

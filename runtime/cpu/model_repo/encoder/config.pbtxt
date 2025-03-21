@@ -29,8 +29,8 @@ input [
   #{
   #  name: "offset"
   #  data_type: TYPE_INT64
-  #  dims: [ ]           # offset,这里要进行修改，因为非批次的不支持reshape，要对export_onnx_cpu动手，不仅是改输入，还要改输入对数据的影响
-  #  #reshape: {shape: [ ]}
+  #  dims: [ 1 ]           # offset,这里要进行修改，因为非批次的不支持reshape，要对export_onnx_cpu动手，不仅是改输入，还要改输入对数据的影响
+  #  reshape: {shape: [ ]}
   #},
   {
     name: "att_cache"
@@ -56,16 +56,18 @@ output [
   #{
   #  name: "r_att_cache"
   #  data_type: TYPE_FP32
-  #  dims: [12, 4, -1, 128] # 第二个是浮动维度，时间的缓存步数，但是前面这四个不知道是什么
+  #  dims: [-1, 4, -1, 128] # 第二个是浮动维度，时间的缓存步数，但是前面这四个不知道是什么
   #},
   #{
   #  name: "r_cnn_cache"
   #  data_type: TYPE_FP32
-  #  dims: [12, 1, 256, -1]
+  #  dims: [-1, 1, 256, -1]
   #}
 ]
 
-
+#dynamic_batching {
+#    preferred_batch_size: [ 16, 32  ]    # 这里是动态维度默认先尝试16，然后尝试32的意思
+#  }
 
 
 instance_group [

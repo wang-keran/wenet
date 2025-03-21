@@ -20,7 +20,7 @@ max_batch_size: 0
 # 这里的数据都是默认的不需要改
 parameters [
   {
-    key: "num_mel_bins",
+    key: "num_mel_bins"
     value: { string_value: "80"}
   },
   {
@@ -55,13 +55,13 @@ output [
   {
     name: "chunk"
     data_type: TYPE_FP32
-    dims: [1, -1, 80]  #batch,decoding_window,feature_size
+    dims: [-1, -1, 80]  #batch,decoding_window,feature_size
   },
-  #{
-  #  name: "offset"
-  #  data_type: TYPE_INT64
-  #  dims: [1]
-  #},
+ # {
+ #   name: "offset"
+ #   data_type: TYPE_INT64
+ #   dims: [1]
+ # },
   {
     name: "att_cache"
     data_type: TYPE_FP32
@@ -77,6 +77,9 @@ output [
   }
 ]
 
+#dynamic_batching {
+#    preferred_batch_size: [ 16, 32 ]
+#  }
 
 instance_group [
     {

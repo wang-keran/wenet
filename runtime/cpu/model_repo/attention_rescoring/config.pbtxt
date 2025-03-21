@@ -23,7 +23,7 @@ max_batch_size: 0 #MAX_BATCH
 input [
   {
     name: "WAV"
-    data_type: TYPE_FP32
+    data_type: TYPE_FP32  
     # 维度设置为-1，这通常意味着这个维度是可变的，即音频数据的长度可以是任意的。
     dims: [-1]
   },
@@ -67,10 +67,10 @@ ensemble_scheduling {
       key: "chunk"
       value: "CHUNK"
     }
-   # output_map {
-   #   key: "offset"
-   #   value: "OFFSET"
-   # }
+    #output_map {
+    #  key: "offset"
+    #  value: "OFFSET"
+    #}
     output_map {
       key: "att_cache"
       value: "ATT_CACHE"

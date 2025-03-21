@@ -162,24 +162,34 @@ def export_encoder(asr_model, args):
     dynamic_axes = {
         # 块大小
         'chunk': {
+      #      0: 'B',
             1: 'T'
         },
         # 注意力缓存
         'att_cache': {
             2: 'T_CACHE'
         },
+      #  'cnn_cache': {
+      #      1: 'B',
+      #  },
         # 注意力掩码，遮蔽未来信息
         'att_mask': {
+            # 0: 'B',
             2: 'T_ADD_T_CACHE'
         },
         # 输出
         'output': {
+         #   0: 'B',
             1: 'T'
         },
         # 反向注意力卷积神经网络缓存
         'r_att_cache': {
+       #     1: 'B',
             2: 'T_CACHE'
         },
+        #'r_cnn_cache': {
+        #    1: 'B',
+        #}
     }
     # NOTE(xcsong): We keep dynamic axes even if in 16/4 mode, this is
     #   to avoid padding the last chunk (which usually contains less
@@ -238,8 +248,8 @@ def export_encoder(asr_model, args):
     # 检查torch编码器，深拷贝是创建新的对象，不会影响原对象
     torch_output = []
     torch_chunk = copy.deepcopy(chunk)
-    # torch_offset = copy.deepcopy(offset)
-    torch_offset=0
+    torch_offset = copy.deepcopy(offset)
+    #torch_offset=0
     torch_required_cache_size = copy.deepcopy(required_cache_size)
     torch_att_cache = copy.deepcopy(att_cache)
     torch_cnn_cache = copy.deepcopy(cnn_cache)
@@ -343,7 +353,8 @@ def export_ctc(asr_model, args):
 
     # 导出onnx_ctc
     print("\tStage-2.2: torch.onnx.export")
-    dynamic_axes = {'hidden': {1: 'T'}, 'probs': {1: 'T'}}
+    # dynamic_axes = {'hidden': {0:'B',1: 'T'}, 'probs': {0:'B',1: 'T'}}
+    dynamic_axes = {'hidden': { 1: 'T'}, 'probs': { 1: 'T'}}
     torch.onnx.export(ctc,
                       hidden,
                       ctc_outpath,
@@ -416,6 +427,7 @@ def export_decoder(asr_model, args):
             0: 'NBEST'
         },
         'encoder_out': {
+         #   0: 'B',
             1: 'T'
         },
         'score': {
