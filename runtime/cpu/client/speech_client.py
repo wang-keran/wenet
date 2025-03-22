@@ -34,6 +34,7 @@ class OfflineSpeechClient(object):
         # 将读取的音频数据转换为适合模型输入的格式，并计算音频数据的长度。
         samples = np.array([waveform], dtype=np.float32)
         lengths = np.array([[len(waveform)]], dtype=np.int32)
+        # lengths = lengths.reshape(-1)
         print("音频：", samples)
         print("音频长度：", lengths)
         # better pad waveform to nearest length here
