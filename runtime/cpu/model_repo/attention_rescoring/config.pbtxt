@@ -25,14 +25,14 @@ input [
     name: "WAV"
     data_type: TYPE_FP32  
     # 维度设置为-1，这通常意味着这个维度是可变的，即音频数据的长度可以是任意的。
-    dims: [-1]
+    dims: [1,-1]
   },
   # 音频长度
   {
     name: "WAV_LENS"
     data_type: TYPE_INT32
     # 维度设置为1，表示这是一个单一的值，即每个音频文件只有一个长度值。
-    dims: [1]
+    dims: [1,1]
   }
 ]
 

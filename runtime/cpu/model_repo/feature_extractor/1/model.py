@@ -160,7 +160,9 @@ class TritonPythonModel:
             batch_count.append(cur_batch)
             batch_len.append(cur_len)
             for wav, wav_len in zip(cur_b_wav, cur_b_wav_lens):
+                print("************************开始获取特征长度**********************")
                 wav_len = wav_len[0]
+                print("*********************************特征长度获取完成********************************")
                 wav = torch.tensor(wav[0:wav_len],
                                    dtype=torch.float32,
                                    device=self.device)
@@ -172,15 +174,16 @@ class TritonPythonModel:
             expect_feat_len = _kaldifeat.num_frames(l, self.opts.frame_opts)
             speech = torch.zeros((b, expect_feat_len, self.feature_size),
                                  dtype=self.output0_dtype,
-                                 device=self.device)
+                                 device=torch.device(self.device))
             speech_lengths = torch.zeros((b, 1),
                                          dtype=torch.int32,
-                                         device=self.device)
+                                         device=torch.device(self.device))
             
             for i in range(b):
                 f = features[idx]
                 f_l = f.shape[0]
-                speech[i, 0:f_l, :] = f.to(self.output0_dtype)
+                #speech[i, 0:f_l, :] = f.to(self.output0_dtype)
+                speech[i, 0:f_l, :] = f.to(torch.float32)
                 speech_lengths[i][0] = f_l
                 idx += 1
             # put speech feature on device will cause empty output
@@ -205,21 +208,41 @@ class TritonPythonModel:
             # 创建张量,这里有问题，找不到output0_dtype
             chunk_output = speech
             # 这里两个cache都是空的，因为都是非流式语音识别，所以没有用到。
-            att_cache_out = torch.zeros(batch, num_blocks, head, required_cache_size, d_k, dtype=self.output2_dtype)
-            cnn_cache_out = torch.zeros(num_blocks, batch, output_size, cnn_module_kernel, dtype=self.output3_dtype)
+            att_cache_out = torch.zeros((batch, num_blocks, head, required_cache_size, d_k), dtype=torch.float32)
+            # **去掉 batch 维度**
+            att_cache_out = att_cache_out.squeeze(0)  # 变成 (12, 4, 497, 128)
+            cnn_cache_out = torch.zeros((num_blocks, batch, output_size, cnn_module_kernel), dtype=torch.float32)
         
             # 将张量转换为DLpack格式
             chunk_dlpack = to_dlpack(chunk_output)
             # 这里的offset是一个标量，所以需要将其转换为张量，并转换为DLpack格式
             #offset_dlpack = to_dlpack(torch.tensor([offset], dtype=self.output1_dtype))
+            #offset_dlpack = to_dlpack(torch.tensor([offset], dtype=self.output1_dtype))
             att_cache_dlpack = to_dlpack(att_cache_out)
             cnn_cache_dlpack = to_dlpack(cnn_cache_out)
         
             # 封装为 pb_utils.Tensor 对象
-            chunk_tensor = pb_utils.Tensor("chunk", chunk_dlpack)
+                # chunk_dlpack 是 DLPack capsule（PyCapsule），
+                # 但 pb_utils.Tensor() 需要的是 NumPy 数组。
+                # 1. 从 DLPack capsule 转换回 PyTorch Tensor
+            chunk_tensor_torch = torch.from_dlpack(chunk_dlpack)
+            # 2. 确保 tensor 在 CPU 上，并转换为 NumPy 数组
+            chunk_tensor_numpy = chunk_tensor_torch.cpu().numpy()
+            # 3. 传给 Triton
+            chunk_tensor = pb_utils.Tensor("chunk", chunk_tensor_numpy)
+            #chunk_tensor = pb_utils.Tensor("chunk", chunk_dlpack)
             #offset_tensor = pb_utils.Tensor("offset", offset_dlpack)
-            att_cache_tensor = pb_utils.Tensor("att_cache", att_cache_dlpack)
-            cnn_cache_tensor = pb_utils.Tensor("cnn_cache", cnn_cache_dlpack)
+            # 1. 转换 DLPack capsule 为 PyTorch Tensor
+            att_cache_tensor_torch = torch.from_dlpack(att_cache_dlpack)
+            # 2. 确保数据在 CPU 上，并转换为 NumPy 数组
+            att_cache_tensor_numpy = att_cache_tensor_torch.cpu().numpy()
+            # 3. 传给 Triton
+            att_cache_tensor = pb_utils.Tensor("att_cache", att_cache_tensor_numpy)
+            #att_cache_tensor = pb_utils.Tensor("att_cache", att_cache_dlpack)
+            cnn_cache_tensor_torch = torch.from_dlpack(cnn_cache_dlpack)
+            cnn_cache_tensor_numpy = cnn_cache_tensor_torch.cpu().numpy()
+            cnn_cache_tensor = pb_utils.Tensor("cnn_cache", cnn_cache_tensor_numpy)
+            #cnn_cache_tensor = pb_utils.Tensor("cnn_cache", cnn_cache_dlpack)
             
             # 创建推理响应返回的 Tensor 对象
             #inference_response = pb_utils.InferenceResponse(
