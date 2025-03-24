@@ -299,6 +299,7 @@ class TritonPythonModel:
         # 这个矩阵将用于存储每个候选词序列，包括起始符（SOS）和结束符（EOS）。
         in_hyps_pad_sos_eos = np.ones(
             (total, beam_size, hyps_max_len), dtype=np.int64) * self.eos
+        print(in_hyps_pad_sos_eos.shape)
         # 如果使用双向解码器（self.bidecoder），还会初始化一个类似的张量in_r_hyps_pad_sos_eos，
         # 用于存储反转后的候选词序列。
         if self.bidecoder:

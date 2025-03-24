@@ -292,6 +292,7 @@ class TritonPythonModel:
 
         batch_encoder_out, batch_encoder_lens = [], []
         batch_log_probs = []
+        batch_log_probs_idx = []
         batch_count = []
         batch_root = TrieVector()
         batch_start = []
@@ -315,16 +316,28 @@ class TritonPythonModel:
                                                      "probs")
             print("********************************finish get input from encoder and ctc********************************")
             
-            batch_log_probs,batch_log_probs_idx = torch.topk(in_1,self.beam_size,dim=2) #修改一下中间的10,不一定是正确的beam_size
+            print(f"********************************type(in_1): {type(in_1)}*****************************")  # 查看 in_1 的类型
+            in_1 = torch.tensor(in_1.as_numpy())  # Triton Tensor → NumPy → PyTorch
+            print(f"***************88**after change type(in_1): {type(in_1)}*****************************")
+            print(f"********************************type(batch_log_probs): {type(batch_log_probs_origin)}*****************************")  # 查看 batch_log_probs 的类型
+            batch_log_probs_origin,batch_log_probs_idx_origin = torch.topk(in_1,self.beam_size,dim=2) #修改一下中间的10,不一定是正确的beam_size
+            print(f"********************************type(batch_log_probs): {type(batch_log_probs_origin)}*****************************")  # 查看 batch_log_probs 的类型
+            print("batch_log_probs_origin get beam_size is:",batch_log_probs_origin.shape)
 
             encoder_out_lens=0
-            output_batch_size,output_time_step,output_feature_size=in_0.shape
+            print(f"before get shape type(in_0): {type(in_0)}")  # 查看 in_0 的类型
+            print(f"before get shape dir(in_0): {dir(in_0)}")  # 查看 in_0 具有什么属性
+            output_batch_size,output_time_step,output_feature_size=in_0.shape()
+            print("***************************************after get shape**********************************")
             # 如果批次大小或时间步数为 0，直接返回全零张量
             if output_batch_size==0 or output_time_step==0:
                 encoder_out_lens = 0
                 raise pb_utils.TritonModelException("The input tensor is empty.")
             # 对特征维度 F 求和，得到 (B, T)
-            encoder_out_sum = in_0.sum(dim=-1)       # dim=-1 表示最后一个维度
+            in_0_copy =in_0
+            in_0_copy=torch.tensor(in_0_copy.as_numpy())
+            encoder_out_sum = in_0_copy.sum(dim=-1)       # dim=-1 表示最后一个维度
+            print("***************************************after get sum**********************************")
             # 检查每个时间步的和是否大于 0，得到 (B, T) 的布尔张量
             encoder_out_mask = encoder_out_sum > 0
             # 对时间维度 T 求和，得到 (B,)
@@ -341,20 +354,27 @@ class TritonPythonModel:
                                   batch_encoder_out[-1].shape[2])
 
             # 这里有问题，因为这个不是encoder_out_lens，这里是ctc_log_probs,差root和start，差在encoder_out_lens没有
-            cur_b_lens = encoder_out_lens.as_numpy()
+            print("***************************Type of encoder_out_lens:", type(encoder_out_lens),"**********************************************")
+            cur_b_lens = encoder_out_lens.cpu().numpy()
             batch_encoder_lens.append(cur_b_lens)
             cur_batch = cur_b_lens.shape[0]
             batch_count.append(cur_batch)
 
-            # 这两个还需要转换成numpy吗？
-            cur_b_log_probs = batch_log_probs.as_numpy()
-            cur_b_log_probs_idx = batch_log_probs_idx.as_numpy()
+            print("***************************Type of batch_log_probs:", type(batch_log_probs),"**********************************************")
+            cur_b_log_probs = batch_log_probs_origin.cpu().numpy()
+            cur_b_log_probs_idx = batch_log_probs_idx_origin.cpu().numpy()
+            print(cur_b_log_probs)
+            print(cur_b_log_probs_idx)
+            print("*********************8cur_batch:",cur_batch,"cur_batch range:",range(cur_batch),"********************************")
             for i in range(cur_batch):
                 cur_len = cur_b_lens[i]
                 cur_probs = cur_b_log_probs[i][
                     0:cur_len, :].tolist()  # T X Beam
+                print("cur_probs is:",cur_probs)
+                print("***************************Type of cur_probs:", type(cur_probs),"**********************************************")
                 cur_idx = cur_b_log_probs_idx[i][
                     0:cur_len, :].tolist()  # T x Beam
+                print("we are in i in range(cur_batch):",i)
                 batch_log_probs.append(cur_probs)
                 batch_log_probs_idx.append(cur_idx)
                 root_dict[total] = PathTrie()
@@ -362,6 +382,7 @@ class TritonPythonModel:
                 batch_start.append(True)
                 total += 1
 
+        print(batch_log_probs_idx)
         print("********************************start ctc_beam_search_decoder_batch********************************")
         # 返回路径的总概率（总得分）和路径的解码结果，按总概率从高到底排序，无需再排序了，只返回了前beam_size个路径
         # 返回的结果数量和批次大小batch_size相同
@@ -405,6 +426,7 @@ class TritonPythonModel:
         # 给序列添加eos结束标识
         in_hyps_pad_sos_eos = np.ones(
             (total, beam_size, hyps_max_len), dtype=np.int64) * self.eos
+        print("*************",in_hyps_pad_sos_eos.shape,"**********************")
         if self.bidecoder:
             in_r_hyps_pad_sos_eos = np.ones(
                 (total, beam_size, hyps_max_len), dtype=np.int64) * self.eos
@@ -438,11 +460,17 @@ class TritonPythonModel:
         in_hyps_lens_sos_origin = in_hyps_lens_sos
         _ = in_hyps_pad_sos_eos[0]
         _ = in_hyps_lens_sos[0]
+        in_hyps_lens_sos=in_hyps_lens_sos.reshape(-1)
+        print(in_hyps_pad_sos_eos.shape)
+        print(f"*****************************************the type of in_hyps_pad_sos_eos:",type(in_hyps_pad_sos_eos),"*******************************************************")
         print("*******************************************************start decoder*******************************************************")
+        print("in_hyps_pad_sos_eos",in_hyps_pad_sos_eos)    #这里的hyps数字过大且相同，都是5234,5234是<start>和<end>的值，输入可能不需要这两个数据，参考export_onnx_gpu中的写法就行，输出已经修改好了
+        print("in_hyps_lens_sos",in_hyps_lens_sos)          #这里除了第一个是1其他的都是2
+        print("encoder_out",in_0)
         # hyps [0,0],hyps_lens [0],encoder_out [1,0,256]，现在的in_hyps_pad_sos_eos就是缺少total维度的了
         in_tensor_0 = pb_utils.Tensor("hyps", in_hyps_pad_sos_eos)
-        in_tensor_1 = pb_utils.Tensor("hyps_lens", in_hyps_lens_sos)
-        in_tensor_2 = pb_utils.Tensor("encoder_out", in_0)
+        in_tensor_1 = pb_utils.Tensor("hyps_lens", in_hyps_lens_sos.astype(np.int64))
+        in_tensor_2 = pb_utils.Tensor("encoder_out", in_0.as_numpy())
         
         input_tensors = [in_tensor_0, in_tensor_1, in_tensor_2]
 
