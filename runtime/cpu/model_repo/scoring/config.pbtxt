@@ -45,7 +45,7 @@ input [
  
   {
     name: "probs"       
-    data_type: TYPE_FP32    # 这里可能是ctc_log_probs,#(batch_size, time_steps, vocab_size) 批次大小、时间步数、字符集大小。
+    data_type: TYPE_FP32    # 这里可是ctc_log_probs,#(batch_size, time_steps, vocab_size) 批次大小、时间步数、字符集大小。
     dims: [-1, -1, 4233]
   }
 ]

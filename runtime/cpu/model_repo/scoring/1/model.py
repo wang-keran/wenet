@@ -327,21 +327,26 @@ class TritonPythonModel:
             encoder_out_lens=0
             print(f"before get shape type(in_0): {type(in_0)}")  # 查看 in_0 的类型
             print(f"before get shape dir(in_0): {dir(in_0)}")  # 查看 in_0 具有什么属性
+            print("in_0 is:",in_0.as_numpy())
             output_batch_size,output_time_step,output_feature_size=in_0.shape()
             print("***************************************after get shape**********************************")
             # 如果批次大小或时间步数为 0，直接返回全零张量
             if output_batch_size==0 or output_time_step==0:
                 encoder_out_lens = 0
+                print("encoder_out_lens=0,The input tensor is empty.")
                 raise pb_utils.TritonModelException("The input tensor is empty.")
             # 对特征维度 F 求和，得到 (B, T)
             in_0_copy =in_0
             in_0_copy=torch.tensor(in_0_copy.as_numpy())
             encoder_out_sum = in_0_copy.sum(dim=-1)       # dim=-1 表示最后一个维度
+            print("encoder_out_sum is :",encoder_out_sum)
             print("***************************************after get sum**********************************")
             # 检查每个时间步的和是否大于 0，得到 (B, T) 的布尔张量
             encoder_out_mask = encoder_out_sum > 0
+            print("encoder_out_mask is :",encoder_out_mask)
             # 对时间维度 T 求和，得到 (B,)
             encoder_out_lens = encoder_out_mask.sum(dim=-1)
+            print("encoder_out_lens is :",encoder_out_lens)
 
             # 新的decoder返回score和r_score，需要回来计算最终的得分,reverse_weight=0.3，这个与模型相关，从train.yaml中找到
             # 还差ctc_scores[i]和ctc_weight这两个变量,ctc_weight=0.3，这个从预训练模型的参数中找到
@@ -355,7 +360,10 @@ class TritonPythonModel:
 
             # 这里有问题，因为这个不是encoder_out_lens，这里是ctc_log_probs,差root和start，差在encoder_out_lens没有
             print("***************************Type of encoder_out_lens:", type(encoder_out_lens),"**********************************************")
+            # 这里cur_b_lens长度也是0,有问题
             cur_b_lens = encoder_out_lens.cpu().numpy()
+            print("encoder_out_lens is :",encoder_out_lens)
+            print("cur_b_lens is :",cur_b_lens)
             batch_encoder_lens.append(cur_b_lens)
             cur_batch = cur_b_lens.shape[0]
             batch_count.append(cur_batch)
@@ -363,17 +371,19 @@ class TritonPythonModel:
             print("***************************Type of batch_log_probs:", type(batch_log_probs),"**********************************************")
             cur_b_log_probs = batch_log_probs_origin.cpu().numpy()
             cur_b_log_probs_idx = batch_log_probs_idx_origin.cpu().numpy()
-            print(cur_b_log_probs)
-            print(cur_b_log_probs_idx)
+            print("cur_b_log_probs is :",cur_b_log_probs)
+            print("cur_b_log_probs_idx is :",cur_b_log_probs_idx)
             print("*********************8cur_batch:",cur_batch,"cur_batch range:",range(cur_batch),"********************************")
             for i in range(cur_batch):
                 cur_len = cur_b_lens[i]
+                print("cur_len is :",cur_len)
                 cur_probs = cur_b_log_probs[i][
                     0:cur_len, :].tolist()  # T X Beam
                 print("cur_probs is:",cur_probs)
                 print("***************************Type of cur_probs:", type(cur_probs),"**********************************************")
                 cur_idx = cur_b_log_probs_idx[i][
                     0:cur_len, :].tolist()  # T x Beam
+                print("cur_idx is:",cur_idx)
                 print("we are in i in range(cur_batch):",i)
                 batch_log_probs.append(cur_probs)
                 batch_log_probs_idx.append(cur_idx)
@@ -413,10 +423,13 @@ class TritonPythonModel:
                                                                  (0, ))]
             # 提取候选路径和得分
             for score, hyps in seq_cand:
+                # 这里是空的，有问题
                 all_hyps.append(list(hyps))
                 all_ctc_score.append(score)
                 max_seq_len = max(len(hyps), max_seq_len)
 
+        print("all_hyps is :",all_hyps)
+        
         beam_size = self.beam_size
         feature_size = self.feature_size
         # 长度加上作用两侧的sos和eos

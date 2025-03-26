@@ -231,7 +231,16 @@ class TritonPythonModel:
                                                      "batch_log_probs")
             in_3 = pb_utils.get_input_tensor_by_name(request,
                                                      "batch_log_probs_idx")
-
+            in_4 = pb_utils.get_input_tensor_by_name(request, "ctc_log_probs")
+            
+            print("in_0 shape is :",in_0.as_numpy().shape)
+            print("encoder_out data:\n", in_0.as_numpy())
+            print("encoder_out_lens data:\n", in_1.as_numpy())
+            print("batch_log_probs data:\n", in_2.as_numpy())
+            print("batch_log_probs_idx data:\n", in_3.as_numpy())
+            #print("ctc_log_probs shape:\n", in_4.as_numpy().shape)
+            #print("ctc_log_probs data:\n", in_4.as_numpy())
+            
             batch_encoder_out.append(in_0.as_numpy())   # batch,feature_size，批次大小和特征维度
             encoder_max_len = max(encoder_max_len,
                                   batch_encoder_out[-1].shape[1])
@@ -331,18 +340,35 @@ class TritonPythonModel:
                         in_r_hyps_pad_sos_eos[st + i][j][0:cur_len] = r_in_hyp
                     in_ctc_score[st + i][j] = all_ctc_score.pop(0)
             st += b
+        print("hyps_pad_sos_eos shape is :",in_hyps_pad_sos_eos.shape)
+        print("hyps_lens_sos shape is :",in_hyps_lens_sos.shape)
         # 将CTC的分数和候选词序列还有编码器输出填充到张量中后，将这些张量作为输入张量传递给解码器模型。
         in_encoder_out_lens = np.expand_dims(in_encoder_out_lens, axis=1)
         in_tensor_0 = pb_utils.Tensor("encoder_out", in_encoder_out)
         in_tensor_1 = pb_utils.Tensor("encoder_out_lens", in_encoder_out_lens)
         in_tensor_2 = pb_utils.Tensor("hyps_pad_sos_eos", in_hyps_pad_sos_eos)
         in_tensor_3 = pb_utils.Tensor("hyps_lens_sos", in_hyps_lens_sos)
+        
+        # 打印张量的维度大小和存储的信息
+        print("in_tensor_0 shape is:", in_tensor_0.as_numpy().shape)
+        print("in_tensor_0 data:\n", in_tensor_0.as_numpy())
+        print("in_tensor_1 shape is:", in_tensor_1.as_numpy().shape)
+        print("in_tensor_1 data:\n", in_tensor_1.as_numpy())
+        print("in_tensor_2 shape is:", in_tensor_2.as_numpy().shape)
+        print("in_tensor_2 data:\n", in_tensor_2.as_numpy())
+        print("in_tensor_3 shape is:", in_tensor_3.as_numpy().shape)
+        print("in_tensor_3 data:\n", in_tensor_3.as_numpy())
+        
         input_tensors = [in_tensor_0, in_tensor_1, in_tensor_2, in_tensor_3]
         if self.bidecoder:
             in_tensor_4 = pb_utils.Tensor("r_hyps_pad_sos_eos",
                                           in_r_hyps_pad_sos_eos)
+            print("r_hyps_pad_sos_eos shape is :",in_r_hyps_pad_sos_eos.shape)
+            print("r_hyps_pad_sos_eos data:\n", in_r_hyps_pad_sos_eos)
             input_tensors.append(in_tensor_4)
         in_tensor_5 = pb_utils.Tensor("ctc_score", in_ctc_score)
+        print("ctc_score shape is :", in_ctc_score.shape)
+        print("ctc_score data:\n", in_ctc_score)
         input_tensors.append(in_tensor_5)
 
         # 这里给了解码器进行解码,并将解码结果填充到输出张量中。
@@ -365,9 +391,12 @@ class TritonPythonModel:
                 inference_response, 'best_index')
             if best_index.is_cpu():
                 best_index = best_index.as_numpy()
+                print("best_index  is :",best_index)
             else:
                 best_index = from_dlpack(best_index.to_dlpack())
                 best_index = best_index.cpu().numpy()
+                print("best_index  is :",best_index)
+
             hyps = []
             idx = 0
             # 获取最佳候选词序列

@@ -412,7 +412,7 @@ def export_decoder(asr_model, args):
     # hardcode time->200 nbest->10 len->20, they are dynamic axes.
     encoder_out = torch.randn((1, 200, args['output_size']))
     hyps = torch.randint(low=0, high=args['vocab_size'], size=[10, 20])
-    hyps[:, 0] = args['vocab_size'] - 1  # <sos>
+    hyps[:, 0] = args['vocab_size'] - 1  # <sos>，这里显式添加<sos>符号，但是没有显式添加<eos> 符号
     hyps_lens = torch.randint(low=15, high=21, size=[10])
 
     # 导出解码器

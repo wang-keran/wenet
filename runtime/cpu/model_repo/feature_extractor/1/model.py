@@ -59,13 +59,6 @@ class TritonPythonModel:
         self.output0_dtype = pb_utils.triton_string_to_numpy(
             output0_config['data_type'])
 
-        # 获取输出的张量的类型（speech）
-        # Get OUTPUT1 configuration
-        #output1_config = pb_utils.get_output_config_by_name(
-        #    model_config, "offset")
-        # Convert Triton types to numpy types，将Triton类型转换为numpy类型
-        #self.output1_dtype = pb_utils.triton_string_to_numpy(
-        #    output1_config['data_type'])
         
         # 获取输出的张量的类型（att_cache）
         output2_config = pb_utils.get_output_config_by_name(
@@ -106,25 +99,6 @@ class TritonPythonModel:
         self.feature_extractor = Fbank(self.opts)
         # 获取特征大小
         self.feature_size = opts.mel_opts.num_bins  #feature_size
-        # # (args.chunk_size - 1) * model.encoder.embed.subsampling_rate + model.encoder.embed.right_context + 1
-        # decoding_window=(args.chunk_size - 1) * \
-        # model.encoder.embed.subsampling_rate + \
-        # model.encoder.embed.right_context + 1 if args.chunk_size > 0 else 67
-        # offset = args['chunk_size'] * args['left_chunks']
-        # # attention_cache:
-        # num_blocks=configs['encoder_conf']['num_blocks']    #train.yaml中的数据
-        # head=configs['encoder_conf']['attention_heads'] #在train.yaml中
-        # required_cache_size=args['chunk_size'] * args['left_chunks']
-        # args['output_size'] // args['head'] * 2
-        # arguments['output_size'] = configs['encoder_conf']['output_size']   #在train.yaml中
-
-        # # cnn_cache
-        # num_blocks=configs['encoder_conf']['num_blocks']    #train.yaml中的数据
-        # args['batch']=1
-        # arguments['output_size'] = configs['encoder_conf']['output_size']   #在train.yaml中
-        # args['cnn_module_kernel'] - 1
-        # arguments['cnn_module_kernel'] = configs['encoder_conf'].get(
-        # 'cnn_module_kernel', 1)
 
     def execute(self, requests):
         """`execute` must be implemented in every Python model. `execute`
@@ -207,48 +181,28 @@ class TritonPythonModel:
             
             # 创建张量,这里有问题，找不到output0_dtype
             chunk_output = speech
+            print("chunk_output shape:", chunk_output.shape)
+            print("chunk_output is :",chunk_output)
             # 这里两个cache都是空的，因为都是非流式语音识别，所以没有用到。
-            att_cache_out = torch.zeros((batch, num_blocks, head, required_cache_size, d_k), dtype=torch.float32)
+            att_cache_out = torch.zeros((num_blocks, head, required_cache_size, d_k), dtype=torch.float32)
+            print("att_cache_out shape:", att_cache_out.shape)
+            print("att_cache_out data:", att_cache_out)
             # **去掉 batch 维度**
-            att_cache_out = att_cache_out.squeeze(0)  # 变成 (12, 4, 497, 128)
             cnn_cache_out = torch.zeros((num_blocks, batch, output_size, cnn_module_kernel), dtype=torch.float32)
+            print("cnn_cache_out shape:", cnn_cache_out.shape)
+            print("cnn_cache_out data:", cnn_cache_out)
         
-            # 将张量转换为DLpack格式
-            chunk_dlpack = to_dlpack(chunk_output)
-            # 这里的offset是一个标量，所以需要将其转换为张量，并转换为DLpack格式
-            #offset_dlpack = to_dlpack(torch.tensor([offset], dtype=self.output1_dtype))
-            #offset_dlpack = to_dlpack(torch.tensor([offset], dtype=self.output1_dtype))
-            att_cache_dlpack = to_dlpack(att_cache_out)
-            cnn_cache_dlpack = to_dlpack(cnn_cache_out)
-        
-            # 封装为 pb_utils.Tensor 对象
-                # chunk_dlpack 是 DLPack capsule（PyCapsule），
-                # 但 pb_utils.Tensor() 需要的是 NumPy 数组。
-                # 1. 从 DLPack capsule 转换回 PyTorch Tensor
-            chunk_tensor_torch = torch.from_dlpack(chunk_dlpack)
-            # 2. 确保 tensor 在 CPU 上，并转换为 NumPy 数组
-            chunk_tensor_numpy = chunk_tensor_torch.cpu().numpy()
-            # 3. 传给 Triton
-            chunk_tensor = pb_utils.Tensor("chunk", chunk_tensor_numpy)
-            #chunk_tensor = pb_utils.Tensor("chunk", chunk_dlpack)
-            #offset_tensor = pb_utils.Tensor("offset", offset_dlpack)
-            # 1. 转换 DLPack capsule 为 PyTorch Tensor
-            att_cache_tensor_torch = torch.from_dlpack(att_cache_dlpack)
-            # 2. 确保数据在 CPU 上，并转换为 NumPy 数组
-            att_cache_tensor_numpy = att_cache_tensor_torch.cpu().numpy()
-            # 3. 传给 Triton
-            att_cache_tensor = pb_utils.Tensor("att_cache", att_cache_tensor_numpy)
-            #att_cache_tensor = pb_utils.Tensor("att_cache", att_cache_dlpack)
-            cnn_cache_tensor_torch = torch.from_dlpack(cnn_cache_dlpack)
-            cnn_cache_tensor_numpy = cnn_cache_tensor_torch.cpu().numpy()
-            cnn_cache_tensor = pb_utils.Tensor("cnn_cache", cnn_cache_tensor_numpy)
-            #cnn_cache_tensor = pb_utils.Tensor("cnn_cache", cnn_cache_dlpack)
+            # 将张量转换为发送格式
+            chunk_send=pb_utils.Tensor.from_dlpack("chunk", to_dlpack(chunk_output))
+            att_cache_send=pb_utils.Tensor.from_dlpack("att_cache", to_dlpack(att_cache_out))
+            cnn_cache_send=pb_utils.Tensor.from_dlpack("cnn_cache", to_dlpack(cnn_cache_out))
             
+            # 3. 传给 Triton            
             # 创建推理响应返回的 Tensor 对象
             #inference_response = pb_utils.InferenceResponse(
             #    output_tensors=[chunk_tensor, offset_tensor, att_cache_tensor, cnn_cache_tensor])
             inference_response = pb_utils.InferenceResponse(
-                output_tensors=[chunk_tensor, att_cache_tensor, cnn_cache_tensor])
+                output_tensors=[chunk_send, att_cache_send, cnn_cache_send])
             
             responses.append(inference_response)
             print("********************************end feature extract********************************")
