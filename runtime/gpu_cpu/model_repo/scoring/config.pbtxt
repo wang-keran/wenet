@@ -1,0 +1,67 @@
+
+name: "scoring"
+backend: "python"
+max_batch_size: 64
+
+parameters [
+  {
+    key: "vocabulary",
+    value: { string_value: "/ws/onnx_model_gpu_cpu_non_streaming/words.txt"}
+  },
+  {
+    key: "bidecoder",
+    value: { string_value: "1"}
+  },
+  {
+    key: "lm_path",
+    value: { string_value: "None"}
+  },
+  {
+   key: "hotwords_path",
+   value : { string_value: "None"}
+  }
+]
+input [
+  {
+    name: "encoder_out"
+    data_type: TYPE_FP16
+    dims: [-1, 256] # [-1, feature_size]
+  },
+  {
+    name: "encoder_out_lens"
+    data_type: TYPE_INT32
+    dims: [1]
+    reshape: { shape: [ ] }
+  },
+ # {
+ #   name: "ctc_log_probs"
+ #   data_type: TYPE_FP16
+ #   dims: [-1, 10]
+ # },
+  {
+    name: "batch_log_probs"
+    data_type: TYPE_FP16
+    dims: [-1, 10] #[-1, beam_size]
+  },
+  {
+    name: "batch_log_probs_idx"
+    data_type: TYPE_INT64
+    dims: [-1, 10]
+  }
+]
+output [
+  {
+    name: "OUTPUT0"
+    data_type: TYPE_STRING
+    dims: [1]
+  }
+]
+dynamic_batching {
+    preferred_batch_size: [ 16, 32 ]
+  }
+instance_group [
+    {
+      count: 4
+      kind: KIND_CPU
+    }
+  ]

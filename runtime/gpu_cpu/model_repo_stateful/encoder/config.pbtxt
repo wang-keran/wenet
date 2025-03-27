@@ -1,0 +1,108 @@
+
+name: "encoder"
+backend: "onnxruntime"
+default_model_filename: "encoder.onnx"
+
+max_batch_size: 512
+
+sequence_batching{    # 共享缓存和开始位置offset，从而实现共享上下文
+    max_sequence_idle_microseconds: 5000000
+    oldest {
+      max_candidate_sequences: 1024
+      max_queue_delay_microseconds: 5000
+    }
+    control_input [
+    ]
+    state [
+    {
+      input_name: "offset"
+      output_name: "r_offset"
+      data_type: TYPE_INT64
+      dims: [ 1 ]
+      initial_state: {
+       data_type: TYPE_INT64
+       dims: [ 1 ]
+       zero_data: true
+       name: "initial state"
+      }
+    },
+    {
+      input_name: "att_cache"
+      output_name: "r_att_cache"
+      data_type: TYPE_FP16
+      dims: [ 12, 4, 80, 128 ]
+      initial_state: {
+       data_type: TYPE_FP16
+       dims: [ 12, 4, 80, 128 ]
+       zero_data: true
+       name: "initial state"
+      }
+    },
+    {
+      input_name: "cnn_cache"
+      output_name: "r_cnn_cache"
+      data_type: TYPE_FP16
+      dims: [12, 256, 7]
+      initial_state: {
+       data_type: TYPE_FP16
+       dims: [12, 256, 7]
+       zero_data: true
+       name: "initial state"
+      }
+    },
+    {
+      input_name: "cache_mask"
+      output_name: "r_cache_mask"
+      data_type: TYPE_FP16
+      dims: [1, 80]
+      initial_state: {
+       data_type: TYPE_FP16
+       dims: [1, 80]
+       zero_data: true
+       name: "initial state"
+      }
+    }
+  ]
+}
+input [
+  {
+    name: "chunk_xs"
+    data_type: TYPE_FP16
+    dims: [67, 80]
+  },
+  {
+    name: "chunk_lens"
+    data_type: TYPE_INT32
+    dims: [ 1 ]
+    reshape: { shape: [] }
+  }
+]
+output [
+  {
+    name: "log_probs"
+    data_type: TYPE_FP16
+    dims: [-1, 10] # [-1, beam_size]
+  },
+  {
+    name: "log_probs_idx"
+    data_type: TYPE_INT64
+    dims: [-1, 10] # [-1, beam_size]
+  },
+  {
+    name: "chunk_out"
+    data_type: TYPE_FP16
+    dims: [-1, 256]
+  },
+  {
+    name: "chunk_out_lens"
+    data_type: TYPE_INT32
+    dims: [1]
+    reshape: { shape: [] }
+  }
+]
+instance_group [
+    {
+      count: 2
+      kind: KIND_GPU
+    }
+]

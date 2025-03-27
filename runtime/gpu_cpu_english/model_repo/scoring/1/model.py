@@ -231,7 +231,7 @@ class TritonPythonModel:
                                                      "batch_log_probs")
             in_3 = pb_utils.get_input_tensor_by_name(request,
                                                      "batch_log_probs_idx")
-            in_4 = pb_utils.get_input_tensor_by_name(request, "ctc_log_probs")
+            #in_4 = pb_utils.get_input_tensor_by_name(request, "ctc_log_probs")
             
             print("in_0 shape is :",in_0.as_numpy().shape)
             print("encoder_out data:\n", in_0.as_numpy())
@@ -239,7 +239,7 @@ class TritonPythonModel:
             print("batch_log_probs data:\n", in_2.as_numpy())
             print("batch_log_probs_idx data:\n", in_3.as_numpy())
             print("ctc_log_probs shape:\n", in_4.as_numpy().shape)
-            print("ctc_log_probs data:\n", in_4.as_numpy())
+            #print("ctc_log_probs data:\n", in_4.as_numpy())
             
             batch_encoder_out.append(in_0.as_numpy())   # batch,feature_size，批次大小和特征维度
             encoder_max_len = max(encoder_max_len,

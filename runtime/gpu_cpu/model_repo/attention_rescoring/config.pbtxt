@@ -1,0 +1,123 @@
+
+
+name: "attention_rescoring"
+platform: "ensemble"
+max_batch_size: 64 #MAX_BATCH
+
+input [
+  {
+    name: "WAV"
+    data_type: TYPE_FP32
+    # 维度设置为-1，这通常意味着这个维度是可变的，即音频数据的长度可以是任意的。
+    dims: [-1]
+  },
+  # 音频长度
+  {
+    name: "WAV_LENS"
+    data_type: TYPE_INT32
+    # 维度设置为1，表示这是一个单一的值，即每个音频文件只有一个长度值。
+    dims: [1]
+  }
+]
+
+output [
+  {
+    name: "TRANSCRIPTS"
+    data_type: TYPE_STRING
+    # 维度设置为1，输出一个字符串
+    dims: [1]
+  }
+]
+
+ensemble_scheduling {
+ step [
+   {
+    # 特征提取模型
+    model_name: "feature_extractor"
+    # 表示使用最新版本的模型
+    model_version: -1
+    input_map {
+      key: "wav"
+      value: "WAV"
+    }
+    # 输入输出数据的映射关系
+    input_map {
+      key: "wav_lens"
+      value: "WAV_LENS"
+    }
+    output_map {
+      key: "speech"
+      value: "SPEECH"
+    }
+    output_map {
+      key: "speech_lengths"
+      value: "SPEECH_LENGTHS"
+    }
+   },
+   # 最新编码器模型
+   {
+    model_name: "encoder"
+    model_version: -1
+    # 输入特征提取后的音频
+    input_map {
+      key: "speech"
+      value: "SPEECH"
+    }
+    # 输入特征提取后的音频长度（帧或者毫秒）
+    input_map {
+      key: "speech_lengths"
+      value: "SPEECH_LENGTHS"
+    }
+    # 输出编码后的中间表示
+    output_map {
+      key: "encoder_out"
+      value: "encoder_out"
+    }
+    # 输出编码后序列的长度
+    output_map {
+      key: "encoder_out_lens"
+      value: "encoder_out_lens"
+    }
+    # 束搜索解码的概率：束搜索的概率是通过在每个时间步选择概率最高的几个候选词，并在每个时间步继续扩展这些候选，最终选择整个序列的总体概率最高的假设来实现的
+    output_map {
+        key: "beam_log_probs"
+        value: "beam_log_probs"
+    }
+    # 束搜索解码的概率索引
+    output_map {
+        key: "beam_log_probs_idx"
+        value: "beam_log_probs_idx"
+    }
+  },
+  # 最新版scoring
+  {
+      model_name: "scoring"
+      model_version: -1
+      # 接收编码器的输出作为输入
+      input_map {
+          key: "encoder_out"
+          value: "encoder_out"
+      }
+      # 接收编码器的输出长度作为输入
+      input_map {
+          key: "encoder_out_lens"
+          value: "encoder_out_lens"
+      }
+      # 接受束搜索解码的概率作为输入，改名为batch_log_probs：迭代过的束搜索解码的概率
+      input_map {
+          key: "batch_log_probs"
+          value: "beam_log_probs"
+      }
+      # 接受束搜索解码的概率索引作为输入，改名为batch_log_probs_idx：迭代过的束搜索解码的概率索引
+      input_map {
+          key: "batch_log_probs_idx"
+          value: "beam_log_probs_idx"
+      }
+      # 输出最终序列
+      output_map {
+          key: "OUTPUT0"
+          value: "TRANSCRIPTS"
+      }
+  }
+ ]
+}
