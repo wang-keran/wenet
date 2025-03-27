@@ -5,7 +5,9 @@ import os
 #model_path = "/home/wangkeran/桌面/WENET/test-cpu-non-streaming-output/encoder.onnx"
 #model_path = "/home/wangkeran/桌面/WENET/aishellout-streaming/encoder.onnx"
 #model_path = "/home/wangkeran/桌面/WENET/aishellout-non-streaming/encoder.onnx"
-model_path = "/home/wangkeran/桌面/WENET/gpu_cpu_non_streaming/encoder_fp16.onnx"
+#model_path = "/home/wangkeran/桌面/WENET/gpu_cpu_non_streaming/encoder_fp16.onnx"
+model_path = "/home/wangkeran/桌面/WENET/gpu_cpu_streaming/encoder_fp16.onnx"
+#model_path = "/home/wangkeran/桌面/WENET/gpu_cpu_english_streaming/encoder_fp16.onnx"
 print("模型路径：",model_path)
 
 # 检查模型文件是否存在
